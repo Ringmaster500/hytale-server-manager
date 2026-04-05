@@ -26,6 +26,8 @@ class ServerManager {
     this.instancesDir = path.join(this.dataDir, 'instances');
     this.ensureDirs();
     this.loadInstances();
+    this.addGlobalLog("[MANAGER] Hytale Server Manager initialized.");
+    this.addGlobalLog(`[MANAGER] Working Directory: ${process.cwd()}`);
   }
 
   isOnboarded(): boolean {
@@ -44,13 +46,25 @@ class ServerManager {
     this.addGlobalLog("[MANAGER] System configuration reset.");
   }
 
-  getSystemInfo() {
+  async getSystemInfo() {
+    const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
+    let jarStatus: 'missing' | 'ready' | 'corrupt' = 'missing';
+    let jarSize = 0;
+
+    if (existsSync(jarPath)) {
+      const stats = await fs.stat(jarPath);
+      jarSize = stats.size;
+      jarStatus = jarSize > 1024 ? 'ready' : 'corrupt';
+    }
+
     return {
-      jarExists: existsSync(path.join(this.coreDir, 'hytaleserver.jar')),
+      jarExists: jarStatus === 'ready',
+      jarStatus,
+      jarSize,
       onboarded: this.isOnboarded(),
       instancesCount: this.instancesMap.size,
       mockMode: process.env.MOCK_SERVER === 'true',
-      javaVersion: process.version,
+      nodeVersion: process.version,
     };
   }
 
@@ -105,8 +119,14 @@ class ServerManager {
   async checkCoreFiles() {
     const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
     
-    // If JAR already exists, skip
-    if (existsSync(jarPath)) return;
+    // Check if current JAR is valid
+    if (existsSync(jarPath)) {
+        const stats = await fs.stat(jarPath);
+        if (stats.size > 1024) return; // Valid JAR
+        
+        this.addGlobalLog("[MANAGER] Detected corrupt/mock JAR. Deleting to re-pull...");
+        await fs.unlink(jarPath);
+    }
 
     if (process.env.MOCK_SERVER === 'true') {
         this.addGlobalLog("[MANAGER] MOCK_SERVER is enabled. Skipping binaries pull.");
@@ -267,6 +287,17 @@ class ServerManager {
     if (!inst || !inst.process) return;
     inst.logs.push(`[MANAGER] Stopping server...\n`);
     inst.process.kill('SIGINT');
+  }
+
+  async deleteInstance(id: string) {
+    const inst = this.instancesMap.get(id);
+    if (!inst) throw new Error(`Instance ${id} not found`);
+    if (inst.status !== 'offline') throw new Error(`Cannot delete a running server. Stop it first.`);
+    
+    const instanceDir = path.join(this.instancesDir, id);
+    await fs.rm(instanceDir, { recursive: true, force: true });
+    this.instancesMap.delete(id);
+    this.addGlobalLog(`[MANAGER] Instance deleted: ${id}`);
   }
 
   private addLog(id: string, message: string) {

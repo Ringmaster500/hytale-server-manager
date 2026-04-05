@@ -75,6 +75,20 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
     });
   };
 
+  const deleteInstance = async () => {
+    if (!confirm('Are you sure you want to delete this instance? ALL DATA WILL BE LOST.')) return;
+    try {
+      const res = await fetch(`/api/servers/${id}`, { method: 'DELETE' });
+      if (res.ok) window.location.href = '/';
+      else {
+          const error = await res.json();
+          alert(`Failed to delete: ${error.error}`);
+      }
+    } catch (e) {
+      alert('An error occurred during deletion');
+    }
+  };
+
   if (!instance) return <div className="container">Loading...</div>;
 
   return (
@@ -102,6 +116,14 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
             style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.4)' }}
           >
             Stop
+          </button>
+          <button 
+            className="btn btn-secondary" 
+            onClick={deleteInstance}
+            disabled={instance.status !== 'offline'}
+            style={{ opacity: instance.status !== 'offline' ? 0.3 : 1, fontSize: '0.8rem' }}
+          >
+            Delete
           </button>
         </div>
       </header>

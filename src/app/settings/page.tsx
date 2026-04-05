@@ -60,6 +60,14 @@ export default function Settings() {
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ opacity: 0.6 }}>JAR Status</span>
+              <span style={{ color: status.jarStatus === 'ready' ? 'var(--success)' : 'orange' }}>{status.jarStatus.toUpperCase()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ opacity: 0.6 }}>File Size</span>
+              <span>{(status.jarSize / 1024 / 1024).toFixed(2)} MB</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ opacity: 0.6 }}>Onboarding Done</span>
               <span>{status.onboarded ? 'Yes' : 'No'}</span>
             </div>
