@@ -1,44 +1,40 @@
-# Hytale Server Manager - Development Plan
+# Hytale Server Manager - "Simple Coolify" Plan
 
-## 🤖 AI Agent System Context & Capabilities
-**Read this before executing any steps:**
-* **Environment Status:** You are running in an environment fully authenticated with the GitHub CLI (`gh`).
-* **Architecture Shift:** The deployment target is **Coolify** using a **Unified Next.js Application**.
-* **Automation Mandate:** Consolidated frontend and backend into a single Next.js app. The backend logic now lives in `src/app/api`.
-* **Tech Stack:** Next.js (Frontend + API), Node.js (Runtime), Dockerode.
+## 🤖 AI Agent System Context & Directives
+**CRITICAL RULES FOR THIS PROJECT:**
+* **NO DOCKER-IN-DOCKER:** Do not use `dockerode` or attempt to spin up separate Docker containers for the game servers. This app will be hosted in Coolify. All game servers must be run as local Node.js `child_process.spawn` background tasks within the main app's environment.
+* **PORT REQUIREMENT:** The Manager Web UI/API must run on port `4982`.
+* **SINGLE REPOSITORY:** This is a monolithic Next.js project (App Router recommended) that handles both the frontend UI and the backend process management via Next.js API Routes (or a custom Express server if streaming websockets for the console is easier).
+* **FILE SYSTEM:** All downloads, instances, mods, and logs MUST be saved to a persistent relative path (e.g., `./data/`) so it can be mapped to a Coolify persistent volume.
 
 ---
 
-## Phase 1: Project Consolidation
-- [x] Merge `/frontend` and `/backend` into a single root-level Next.js project.
-- [x] Add `dockerode` and `@types/dockerode` to the main `package.json`.
-- [x] Configure `next.config.ts` for `standalone` output for efficient Docker imaging.
+## Phase 1: Repository & Custom Environment Setup
+- [ ] Initialize a new Next.js project.
+- [ ] Create a custom `Dockerfile` in the root. This is critical for Coolify. It must start from a base image that supports Node.js (for the web app) but MUST also install `openjdk` (or the required Java version) and `wget`/`curl` so the container can run Hytale natively.
+- [ ] Configure the web server to run on port `4982`.
+- [ ] Create a `data/` directory at the project root and add it to `.gitignore`. This will be our mock persistent volume for local development.
 
-## Phase 2: Unified API Routes (Next.js)
-- [x] Migrate backend logic to `src/app/api/servers/`.
-- [x] Implement Docker socket connection in `src/lib/docker.ts`.
-- [x] Create API routes for server listing, creation, power management, and file operations.
-- [x] Ensure `DATA_DIR` and `DOCKER_SOCKET` environment variables are supported.
+## Phase 2: The Core Engine (Child Process Manager)
+- [ ] Build a `ServerManager` utility class in Node.js.
+- [ ] **Auto-Setup Logic:** Write a function that checks if `data/core/hytaleserver.jar` exists. If not, it automatically downloads the required server files before allowing any instances to be created.
+- [ ] **Instance Creation:** Write logic to create new sub-directories (e.g., `data/instances/server-1`), generate default `server.properties` files, and assign unique game ports.
+- [ ] **Process Control:** Use `child_process.spawn` to start the `java -jar` processes inside their respective instance folders. Keep references to these processes in memory to allow starting, stopping, and restarting.
+- [ ] **Console Routing:** Pipe the `stdout` and `stderr` of these spawned Java processes into text logs or a memory buffer so the Web UI can read the live console.
 
-## Phase 3: Dashboard Refinement
-- [x] Update frontend to use relative `/api` paths (same origin).
-- [x] Ensure dark-mode UI and Luce-react icons are functioning within the single project.
-- [x] Test the Mod Manager's file upload/delete logic within the Next.js API context.
+## Phase 3: The API & Cloudflare Automation
+- [ ] Create API routes to handle UI requests (`/api/servers/start`, `/api/servers/stop`, `/api/servers/create`).
+- [ ] Create a file management API to read/write/delete files specifically inside `data/instances/[id]/mods/` and `data/instances/[id]/config/`.
+- [ ] **Cloudflare Integration:** Build a script that either uses the Cloudflare API (Zero Trust) to automatically create/update DNS records and tunnel routing for new instances, OR programmatically edits the `cloudflared` config file if the CLI is bundled in the container.
 
-## Phase 4: Coolify One-Click Optimization
-- [x] Create a production-ready `Dockerfile` at the repository root.
-- [x] Use a multi-stage build process to keep the final image small and secure.
-- [x] Expose port 3000 as the single entry point for both UI and API.
-- [x] Ensure the `nextjs` system user has appropriate permissions for the internal `.next` directory.
+## Phase 4: The Web Dashboard (Next.js UI)
+- [ ] Build a sleek Homepage listing all created server instances, showing their current status (Online/Offline), CPU/RAM usage (using Node `os` metrics for the child processes), and assigned ports.
+- [ ] Build the **Instance Detail Page**:
+    - **Console Tab:** A terminal window fetching the live `stdout` logs from the API and an input box to send RCON/stdin commands.
+    - **Mods Tab:** A simple UI to upload `.jar`/`.hymod` files to the instance's mod folder and toggle them on/off.
+    - **Config Tab:** A text editor to directly modify the instance's `server.properties` and whitelist.
 
-## Phase 5: Deployment
-- [x] **Final Step:** In Coolify, create a "New Application" from your GitHub App.
-- [x] Select this repository. Coolify will detect the `Dockerfile` and handle the rest.
-- [x] **Required Settings:** In the Coolify UI, go to the "Volumes" tab and mount `/var/run/docker.sock` to `/var/run/docker.sock`.
-- [x] Add the `DATA_DIR` environment variable to point to your Hytale data storage path.
-
-## Phase 6: Automated Self-Setup (Self-Contained)
-- [x] Copy Hytale server binaries and configs from host into `docker/hytale-server/`.
-- [x] Create a dedicated `docker/hytale-server/Dockerfile` for the server fleet.
-- [x] Implement auto-detection and image building within the manager API.
-- [ ] Add a "System Status" view to the dashboard to monitor the base image health.
+## Phase 5: Coolify Deployment Prep
+- [ ] Write a `.env.example` file detailing any Cloudflare API tokens or Coolify-specific variables needed.
+- [ ] Add instructions to the `README.md` on how to mount the `/app/data` volume in the Coolify dashboard so instance data is persistent across web-app deployments.
+- [ ] *Note on Ports:* Document that while the manager runs on `4982`, the user will need to expose the individual UDP game ports through Coolify's port mapping settings for players to connect.

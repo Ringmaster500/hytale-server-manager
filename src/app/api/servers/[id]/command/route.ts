@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { serverManager } from '@/lib/server/manager';
 
-export async function GET(
+export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const instance = serverManager.getInstance(id);
-    if (!instance) {
-      return NextResponse.json({ error: 'Instance not found' }, { status: 404 });
+    const { command } = await req.json();
+    if (!command) {
+      return NextResponse.json({ error: 'Command is required' }, { status: 400 });
     }
-    return NextResponse.json(instance);
+    serverManager.sendCommand(id, command);
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

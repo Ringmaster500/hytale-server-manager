@@ -1,53 +1,33 @@
-# Build Stage (Using Debian-based Slim for stability during compilation)
-FROM node:20-slim AS builder
+FROM node:20-bookworm-slim
 
-# Install build essentials
+# Install Java 21, wget, curl, procps
 RUN apt-get update && apt-get install -y \
-    libc6 \
+    openjdk-21-jre-headless \
+    wget \
+    curl \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install dependencies
+# Copy package files
 COPY package.json package-lock.json* ./
-RUN npm ci
 
-# ONLY copy essential Next.js files to the builder
-COPY src/ ./src/
-COPY public/ ./public/
-COPY package.json ./
-COPY next.config.ts ./
-COPY tsconfig.json ./
-COPY next-env.d.ts ./
-COPY postcss.config.mjs ./
+# Install dependencies - we need to install prod AND dev since we'll build the Next.js app in-container
+RUN npm install
 
-# Build the Next.js site
-# Increase memory and disable Turbopack explicitly
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx next build
+# Copy project files
+COPY . .
 
-# Production Stage (Using Alpine for small footprint)
-FROM node:20-alpine AS runner
-WORKDIR /app
-
+# Set environment variables
 ENV NODE_ENV=production
-
-# RUN as root for Docker access
-# USER nextjs 
-
-COPY --from=builder /app/public ./public
-RUN mkdir .next
-
-# Automatically leverage output traces to reduce image size
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Include the large Hytale server folder
-COPY docker/ ./docker/
-
-EXPOSE 4982
 ENV PORT=4982
-ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Build the Next.js app
+RUN npm run build
+
+# Expose the manager port
+EXPOSE 4982
+
+# The 'next start' command will use the environment variable PORT
+CMD ["npm", "start"]
