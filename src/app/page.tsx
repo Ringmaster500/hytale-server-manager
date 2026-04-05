@@ -61,9 +61,14 @@ export default function Home() {
           <h1 className="title">Hytale Manager</h1>
           <p style={{ color: 'rgba(255,255,255,0.6)', marginTop: '0.25rem' }}>Control your server instances natively.</p>
         </div>
-        <button className="btn btn-primary" onClick={createInstance}>
-          <span>+</span> Create New Instance
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Link href="/settings">
+            <button className="btn btn-secondary">System Settings</button>
+          </Link>
+          <button className="btn btn-primary" onClick={createInstance}>
+            <span>+</span> Create New Instance
+          </button>
+        </div>
       </header>
 
       <div className="grid">

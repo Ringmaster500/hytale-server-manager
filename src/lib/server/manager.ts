@@ -36,6 +36,24 @@ class ServerManager {
     await fs.writeFile(path.join(this.dataDir, 'config.json'), JSON.stringify(config, null, 2));
   }
 
+  async resetConfig() {
+    const configPath = path.join(this.dataDir, 'config.json');
+    const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
+    if (existsSync(configPath)) await fs.unlink(configPath);
+    if (existsSync(jarPath)) await fs.unlink(jarPath);
+    this.addGlobalLog("[MANAGER] System configuration reset.");
+  }
+
+  getSystemInfo() {
+    return {
+      jarExists: existsSync(path.join(this.coreDir, 'hytaleserver.jar')),
+      onboarded: this.isOnboarded(),
+      instancesCount: this.instancesMap.size,
+      mockMode: process.env.MOCK_SERVER === 'true',
+      javaVersion: process.version,
+    };
+  }
+
   private async loadInstances() {
     try {
       const dirs = await fs.readdir(this.instancesDir);
