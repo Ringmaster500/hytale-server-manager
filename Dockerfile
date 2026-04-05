@@ -1,10 +1,17 @@
-FROM node:20-bullseye
-
-# Install Java 21 manually (Full image node:20-bullseye has wget/tar)
-RUN mkdir -p /opt/java/openjdk \
-    && wget -qO- https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_linux_hotspot_21.0.2_13.tar.gz | tar -xzf - -C /opt/java/openjdk --strip-components=1
-
-# Set environment variables for Java
+FROM ubuntu:22.04
+ 
+# Install Node, Java, and dependencies from scratch
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    unzip \
+    ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && mkdir -p /opt/java/openjdk \
+    && wget -qO- https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_linux_hotspot_21.0.2_13.tar.gz | tar -xzf - -C /opt/java/openjdk --strip-components=1 \
+    && rm -rf /var/lib/apt/lists/*
+ 
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
 
