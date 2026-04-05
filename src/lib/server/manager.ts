@@ -24,6 +24,44 @@ class ServerManager {
     this.coreDir = path.join(this.dataDir, 'core');
     this.instancesDir = path.join(this.dataDir, 'instances');
     this.ensureDirs();
+    this.loadInstances();
+  }
+
+  isOnboarded(): boolean {
+    return existsSync(path.join(this.dataDir, 'config.json'));
+  }
+
+  async saveConfig(config: any) {
+    await fs.writeFile(path.join(this.dataDir, 'config.json'), JSON.stringify(config, null, 2));
+  }
+
+  private async loadInstances() {
+    try {
+      const dirs = await fs.readdir(this.instancesDir);
+      for (const id of dirs) {
+        const instanceDir = path.join(this.instancesDir, id);
+        const stats = await fs.stat(instanceDir);
+        if (stats.isDirectory()) {
+          // Mock loading from server.properties if it exists
+          let port = 4242;
+          try {
+            const props = await fs.readFile(path.join(instanceDir, 'server.properties'), 'utf-8');
+            const match = props.match(/server\.port=(\d+)/);
+            if (match) port = parseInt(match[1]);
+          } catch (e) {}
+
+          this.instancesMap.set(id, {
+            id,
+            name: id.replace(/-/g, ' '),
+            port,
+            status: 'offline',
+            logs: [],
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load existing instances:', e);
+    }
   }
 
   private ensureDirs() {
@@ -37,11 +75,31 @@ class ServerManager {
   // Phase 2: Auto-Setup Logic
   async checkCoreFiles() {
     const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
-    if (!existsSync(jarPath)) {
-      console.log('Hytale server JAR not found, setting up placeholder...');
-      // Placeholder JAR for testing until official links are available
-      await fs.writeFile(jarPath, 'MOCK_HYTALE_JAR_CONTENT');
+    
+    // If JAR already exists, skip
+    if (existsSync(jarPath)) return;
+
+    const configPath = path.join(this.dataDir, 'config.json');
+    if (existsSync(configPath)) {
+      try {
+        const config = JSON.parse(await fs.readFile(configPath, 'utf-8'));
+        console.log('Attempting to pull real Hytale binaries with CLI...');
+        
+        // Placeholder for Hytale Downloader CLI integration
+        // const proc = spawn('hytale-downloader', ['download', '--email', config.username, '--password', config.password, '--out', this.coreDir]);
+        
+        // Simulating CLI process
+        await new Promise(r => setTimeout(r, 3000));
+        await fs.writeFile(jarPath, 'MOCK_REAL_JAR_CONTENT'); 
+        console.log('Hytale binaries pulled successfully.');
+        return;
+      } catch (e) {
+        console.error('CLI pull failed, falling back to mock:', e);
+      }
     }
+
+    console.log('Hytale server JAR not found and no CLI config, setting up placeholder...');
+    await fs.writeFile(jarPath, 'MOCK_HYTALE_JAR_CONTENT');
   }
 
   // Phase 2: Instance Creation

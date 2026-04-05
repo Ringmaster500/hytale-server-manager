@@ -15,6 +15,7 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
   const { id } = use(params);
   const [instance, setInstance] = useState<ServerInstance | null>(null);
   const [command, setCommand] = useState('');
+  const [config, setConfig] = useState('');
   const consoleRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<'console' | 'mods' | 'config'>('console');
 
@@ -28,11 +29,23 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
     }
   };
 
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch(`/api/servers/${id}/config`);
+      const data = await res.json();
+      if (data.config) setConfig(data.config);
+    } catch (e) {}
+  };
+
   useEffect(() => {
     fetchInstance();
-    const interval = setInterval(fetchInstance, 2000); // More frequent for console
+    const interval = setInterval(fetchInstance, 2000); 
     return () => clearInterval(interval);
   }, [id]);
+
+  useEffect(() => {
+    if (tab === 'config') fetchConfig();
+  }, [tab]);
 
   useEffect(() => {
     if (consoleRef.current) {
@@ -53,6 +66,13 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
       body: JSON.stringify({ command }),
     });
     setCommand('');
+  };
+
+  const saveConfig = async () => {
+    await fetch(`/api/servers/${id}/config`, {
+      method: 'POST',
+      body: JSON.stringify({ config }),
+    });
   };
 
   if (!instance) return <div className="container">Loading...</div>;
@@ -158,8 +178,12 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
             <div className="card glass" style={{ height: '400px', padding: 0 }}>
                <textarea 
                   style={{ width: '100%', height: '100%', background: '#111', color: '#fff', border: 'none', padding: '1.5rem', fontSize: '0.85rem', fontFamily: 'monospace' }}
-                  defaultValue={`server.port=${instance.port}\nmax-players=20\nmotd=A Hytale Server`}
+                  value={config}
+                  onChange={(e) => setConfig(e.target.value)}
+                  onBlur={saveConfig}
+                  placeholder="# Server properties loaded from server.properties..."
                 />
+                <div style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', opacity: 0.5, textAlign: 'right' }}>Changes saved automatically on blur.</div>
             </div>
           )}
         </section>

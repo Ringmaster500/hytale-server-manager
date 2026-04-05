@@ -27,7 +27,16 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchInstances();
+    const checkOnboarding = async () => {
+      const res = await fetch('/api/setup');
+      const data = await res.json();
+      if (!data.isOnboarded) {
+        window.location.href = '/onboarding';
+      } else {
+        fetchInstances();
+      }
+    };
+    checkOnboarding();
     const interval = setInterval(fetchInstances, 5000); // Poll every 5s
     return () => clearInterval(interval);
   }, []);
