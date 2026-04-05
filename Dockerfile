@@ -1,16 +1,17 @@
-FROM alpine:latest
+FROM node:18-alpine
  
-# Install Node, Java 21, and dependencies via APK (uses musl, avoiding glibc segfaults)
+# Set memory limit for Node processes (helps prevent segfaults on resource-constrained hosts)
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+ 
+# Install Java 21 and build tools
 RUN apk add --no-cache \
-    nodejs \
-    npm \
     openjdk21-jre \
     wget \
     unzip \
     curl \
     libc6-compat
  
-# Set environment variables for Java (Alpine location)
+# Set environment variables for Java
 ENV JAVA_HOME=/usr/lib/jvm/default-jvm
 ENV PATH=$JAVA_HOME/bin:$PATH
 
