@@ -1,7 +1,7 @@
 FROM node:20-bookworm-slim
 
 # Copy Java 21 from official Temurin image
-COPY --from=eclipse-temurin:21-jre-bookworm /opt/java/openjdk /opt/java/openjdk
+COPY --from=eclipse-temurin:21-jre-jammy /opt/java/openjdk /opt/java/openjdk
 
 # Set environment variables for Java
 ENV JAVA_HOME=/opt/java/openjdk
