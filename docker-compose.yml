@@ -6,9 +6,9 @@ services:
     container_name: hytale-manager-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "4982:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_API_URL=http://localhost:4983
     depends_on:
       - backend
 
@@ -17,9 +17,9 @@ services:
     container_name: hytale-manager-backend
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "4983:4982"
     environment:
-      - PORT=3001
+      - PORT=4982
       - CASAOS_DIR=/DATA/AppData/hytale-manager/instances
       - DOCKER_SOCKET=/var/run/docker.sock
     volumes:
