@@ -21,6 +21,7 @@ COPY public/ ./public/
 COPY package.json ./
 COPY next.config.ts ./
 COPY tsconfig.json ./
+COPY next-env.d.ts ./
 COPY postcss.config.mjs ./
 
 # Build the Next.js site
