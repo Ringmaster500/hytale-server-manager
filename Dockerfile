@@ -25,6 +25,8 @@ COPY next-env.d.ts ./
 COPY postcss.config.mjs ./
 
 # Build the Next.js site
+ENV NEXT_TURBO=0
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npx next build
 
 # Production image, copy all the files and run next
