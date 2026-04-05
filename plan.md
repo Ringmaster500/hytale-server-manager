@@ -40,5 +40,5 @@
 ## Phase 6: Automated Self-Setup (Self-Contained)
 - [x] Copy Hytale server binaries and configs from host into `docker/hytale-server/`.
 - [x] Create a dedicated `docker/hytale-server/Dockerfile` for the server fleet.
-- [ ] Implement auto-detection and image building within the manager API.
+- [x] Implement auto-detection and image building within the manager API.
 - [ ] Add a "System Status" view to the dashboard to monitor the base image health.
