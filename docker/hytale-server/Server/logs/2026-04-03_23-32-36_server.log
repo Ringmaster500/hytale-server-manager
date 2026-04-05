@@ -1,0 +1,95 @@
+[2026/04/03 23:32:37   INFO]           [HytaleServer] Starting HytaleServer
+[2026/04/03 23:32:37   INFO]           [HytaleServer] Loading config...
+[2026/04/03 23:32:37 SEVERE]                   [SERR] decodeJson: class com.hypixel.hytale.codec.DocumentContainingCodec
+[2026/04/03 23:32:37   INFO]           [HytaleServer] Authentication mode: AUTHENTICATED
+[2026/04/03 23:32:37   INFO]      [ServerAuthManager] No server tokens configured. Use /auth login to authenticate, or provide tokens via CLI/environment.
+[2026/04/03 23:32:37   INFO]      [ServerAuthManager] Server session ID: 0030d1f9-6fcd-426e-98d4-4ebd7194959e
+[2026/04/03 23:32:37   INFO]           [HytaleServer] Enabling Sentry
+[2026/04/03 23:32:39   INFO]           [HytaleServer] Booting up HytaleServer - Version: 2026.02.19-1a311a592, Revision: 1a311a5921cb413cc899ada8941ff0b9ce1d64e1
+[2026/04/03 23:32:39   INFO]           [HytaleServer] Setup phase...
+[2026/04/03 23:32:39   INFO]          [PluginManager] Loading pending core plugins!
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ConsoleModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:PermissionsModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:UpdateModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:FlyCameraModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:AssetModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:CommonAssetModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:CosmeticsModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ServerManager
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:I18nModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ItemModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockTypeModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:LegacyModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockStateModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:CollisionModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockSetModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:MigrationModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockHealthModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:PrefabSpawnerModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:TimeModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:AnchorActionModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:InteractionModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:EntityModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:EntityStatsModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:EntityUIModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:DamageModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:SplitVelocity
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:StaminaModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:DebugPlugin
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ProjectileModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ServerPlayerListModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:AccessControlModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:SingleplayerModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Universe
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ConnectedBlocksModule
+[2026/04/03 23:32:39   INFO]          [PluginManager] Loading pending classpath plugins!
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:AssetEditor
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockSpawner
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockTick
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BlockPhysics
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:BuilderTools
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Crafting
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:CommandMacro
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Instances
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:LANDiscovery
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:NPC
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:NPCObjectives
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ObjectiveReputation
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Objectives
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ObjectiveShop
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Path
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Reputation
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:NPCReputation
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Shop
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:ShopReputation
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:NPCShop
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:NPCEditor
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Stash
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:TagSet
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Teleport
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Fluid
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Weather
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:WorldGen
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Farming
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Camera
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:WorldLocationCondition
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:NPCCombatActionEvaluator
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Model
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Mantling
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:SafetyRoll
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:SprintForce
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:CrouchSlide
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Parkour
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Mounts
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:HytaleGenerator
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Teleporter
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Memories
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Deployables
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Portals
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Beds
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:Ambience
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:CreativeHub
+[2026/04/03 23:32:39   INFO]          [PluginManager] - Hytale:RandomTick
+[2026/04/03 23:32:39   INFO]          [PluginManager] Loading pending plugins from directory: mods
+[2026/04/03 23:32:39   INFO]             [Universe|P] Scheduled backup to run every 30 minute(s)

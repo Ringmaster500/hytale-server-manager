@@ -36,4 +36,9 @@
 - [x] Select this repository. Coolify will detect the `Dockerfile` and handle the rest.
 - [x] **Required Settings:** In the Coolify UI, go to the "Volumes" tab and mount `/var/run/docker.sock` to `/var/run/docker.sock`.
 - [x] Add the `DATA_DIR` environment variable to point to your Hytale data storage path.
-
+
+## Phase 6: Automated Self-Setup (Self-Contained)
+- [x] Copy Hytale server binaries and configs from host into `docker/hytale-server/`.
+- [x] Create a dedicated `docker/hytale-server/Dockerfile` for the server fleet.
+- [ ] Implement auto-detection and image building within the manager API.
+- [ ] Add a "System Status" view to the dashboard to monitor the base image health.
