@@ -18,6 +18,7 @@ class ServerManager {
   private dataDir: string;
   private coreDir: string;
   private instancesDir: string;
+  private globalLogs: string[] = [];
 
   constructor() {
     this.dataDir = path.join(process.cwd(), 'data');
@@ -72,6 +73,16 @@ class ServerManager {
     });
   }
 
+  getGlobalLogs() {
+    return this.globalLogs;
+  }
+
+  private addGlobalLog(message: string) {
+    this.globalLogs.push(message);
+    if (this.globalLogs.length > 500) this.globalLogs.shift();
+    console.log(`[SYS] ${message}`);
+  }
+
   // Phase 2: Auto-Setup Logic
   async checkCoreFiles() {
     const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
@@ -79,27 +90,52 @@ class ServerManager {
     // If JAR already exists, skip
     if (existsSync(jarPath)) return;
 
-    const configPath = path.join(this.dataDir, 'config.json');
-    if (existsSync(configPath)) {
-      try {
-        const config = JSON.parse(await fs.readFile(configPath, 'utf-8'));
-        console.log('Attempting to pull real Hytale binaries with CLI...');
-        
-        // Placeholder for Hytale Downloader CLI integration
-        // const proc = spawn('hytale-downloader', ['download', '--email', config.username, '--password', config.password, '--out', this.coreDir]);
-        
-        // Simulating CLI process
-        await new Promise(r => setTimeout(r, 3000));
-        await fs.writeFile(jarPath, 'MOCK_REAL_JAR_CONTENT'); 
-        console.log('Hytale binaries pulled successfully.');
+    if (process.env.MOCK_SERVER === 'true') {
+        this.addGlobalLog("[MANAGER] MOCK_SERVER is enabled. Skipping binaries pull.");
+        await fs.writeFile(jarPath, 'MOCK_HYTALE_JAR_CONTENT');
         return;
-      } catch (e) {
-        console.error('CLI pull failed, falling back to mock:', e);
-      }
     }
 
-    console.log('Hytale server JAR not found and no CLI config, setting up placeholder...');
-    await fs.writeFile(jarPath, 'MOCK_HYTALE_JAR_CONTENT');
+    this.addGlobalLog("[MANAGER] No server binaries found. Launching Hytale Downloader...");
+    
+    // Attempt authentication and download
+    // Since we're in a container, we'll try to run it and capture the output for user info
+    try {
+      // NOTE: Hytale CLI uses OAuth2/Device flow. 
+      // The CLI will print a URL/code if it's the first time.
+      const downloader = spawn('hytale-downloader', ['-download-path', jarPath], {
+        cwd: this.coreDir,
+        env: { ...process.env }
+      });
+
+      return new Promise<void>((resolve, reject) => {
+        downloader.stdout?.on('data', (data) => {
+          this.addGlobalLog(data.toString());
+        });
+        downloader.stderr?.on('data', (data) => {
+          this.addGlobalLog(`[ERROR] ${data.toString()}`);
+        });
+
+        downloader.on('close', (code) => {
+          if (code === 0) {
+            this.addGlobalLog("[MANAGER] Hytale binaries downloaded successfully.");
+            resolve();
+          } else {
+            this.addGlobalLog(`[MANAGER] Downloader exited with code ${code}.`);
+            reject(new Error(`Hytale Downloader failed (code ${code}). Check logs for auth code.`));
+          }
+        });
+
+        downloader.on('error', (err) => {
+          this.addGlobalLog(`[MANAGER] Failed to execute downloader: ${err.message}`);
+          reject(err);
+        });
+      });
+
+    } catch (e: any) {
+      this.addGlobalLog(`[MANAGER] Download failed: ${e.message}`);
+      throw e;
+    }
   }
 
   // Phase 2: Instance Creation
