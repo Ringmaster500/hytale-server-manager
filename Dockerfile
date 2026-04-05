@@ -1,8 +1,14 @@
 FROM node:20-bookworm-slim
 
-# Install Java 21, wget, curl, procps
+# Copy Java 21 from official Temurin image
+COPY --from=eclipse-temurin:21-jre-bookworm /opt/java/openjdk /opt/java/openjdk
+
+# Set environment variables for Java
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Install wget, curl, procps
 RUN apt-get update && apt-get install -y \
-    openjdk-21-jre-headless \
     wget \
     curl \
     procps \
