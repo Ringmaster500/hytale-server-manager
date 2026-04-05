@@ -1,18 +1,17 @@
-FROM ubuntu:22.04
+FROM alpine:latest
  
-# Install Node, Java, and dependencies from scratch
-RUN apt-get update && apt-get install -y \
-    curl \
+# Install Node, Java 21, and dependencies via APK (uses musl, avoiding glibc segfaults)
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    openjdk21-jre \
     wget \
     unzip \
-    ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && mkdir -p /opt/java/openjdk \
-    && wget -qO- https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_linux_hotspot_21.0.2_13.tar.gz | tar -xzf - -C /opt/java/openjdk --strip-components=1 \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    libc6-compat
  
-ENV JAVA_HOME=/opt/java/openjdk
+# Set environment variables for Java (Alpine location)
+ENV JAVA_HOME=/usr/lib/jvm/default-jvm
 ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Download and install Hytale Downloader CLI (Node image already has wget/unzip)
