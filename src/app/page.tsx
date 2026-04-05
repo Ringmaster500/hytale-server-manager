@@ -58,7 +58,7 @@ export default function Home() {
         fetchServers();
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to create server");
+        alert(data.details ? `${data.error}: ${data.details}` : (data.error || "Failed to create server"));
       }
     } catch (err) {
       console.error("Failed to create server", err);
