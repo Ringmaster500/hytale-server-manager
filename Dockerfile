@@ -1,19 +1,18 @@
-FROM node:20-bookworm-slim
+FROM eclipse-temurin:21-jre-jammy
 
-# Copy Java 21 from official Temurin image
-COPY --from=eclipse-temurin:21-jre-jammy /opt/java/openjdk /opt/java/openjdk
-
-# Set environment variables for Java
-ENV JAVA_HOME=/opt/java/openjdk
-ENV PATH=$JAVA_HOME/bin:$PATH
-
-# Install Java 21, wget, curl, procps, and unzip
+# Install Node.js 20 and system dependencies
 RUN apt-get update && apt-get install -y \
-    wget \
     curl \
+    wget \
     procps \
     unzip \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables for Java (Already set in parent image, but making explicit)
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Download and install Hytale Downloader CLI
 RUN wget -q https://downloader.hytale.com/hytale-downloader.zip -O /tmp/hytale-downloader.zip \
