@@ -1,26 +1,18 @@
-FROM eclipse-temurin:21-jre-jammy
+FROM node:20
 
-# Install Node.js 20 and system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
-    procps \
-    unzip \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+# Copy Java 21 from official Temurin image
+COPY --from=eclipse-temurin:21-jre-jammy /opt/java/openjdk /opt/java/openjdk
 
-# Set environment variables for Java (Already set in parent image, but making explicit)
+# Set environment variables for Java
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
 
-# Download and install Hytale Downloader CLI
+# Download and install Hytale Downloader CLI (Node image already has wget/unzip)
 RUN wget -q https://downloader.hytale.com/hytale-downloader.zip -O /tmp/hytale-downloader.zip \
-    && unzip /tmp/hytale-downloader.zip -d /tmp/hytale-downloader \
-    && mv /tmp/hytale-downloader/hytale-downloader-* /usr/local/bin/hytale-downloader \
-    || echo "Warning: Hytale Downloader could not be downloaded automatically. Please upload it manually." \
-    && chmod +x /usr/local/bin/hytale-downloader || true \
-    && rm -rf /tmp/hytale-downloader*
+    && unzip /tmp/hytale-downloader.zip -d /tmp/downloader-temp \
+    && mv /tmp/downloader-temp/hytale-downloader-linux-amd64 /usr/local/bin/hytale-downloader \
+    && chmod +x /usr/local/bin/hytale-downloader \
+    && rm -rf /tmp/downloader-temp /tmp/hytale-downloader.zip
 
 WORKDIR /app
 
