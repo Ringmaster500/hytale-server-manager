@@ -1,8 +1,8 @@
-FROM eclipse-temurin:21-jre-jammy as java_base
 FROM node:20-bullseye
 
-# Copy Java 21 from the stage
-COPY --from=java_base /opt/java/openjdk /opt/java/openjdk
+# Install Java 21 manually (Full image node:20-bullseye has wget/tar)
+RUN mkdir -p /opt/java/openjdk \
+    && wget -qO- https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_linux_hotspot_21.0.2_13.tar.gz | tar -xzf - -C /opt/java/openjdk --strip-components=1
 
 # Set environment variables for Java
 ENV JAVA_HOME=/opt/java/openjdk
