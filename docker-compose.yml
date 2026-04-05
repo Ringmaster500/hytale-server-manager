@@ -5,8 +5,7 @@ services:
       dockerfile: Dockerfile
     image: hytale-manager:latest
     container_name: hytale-manager
-    ports:
-      - "4982:4982"
+    network_mode: host
     environment:
       - PORT=4982
       - NODE_ENV=production
@@ -17,9 +16,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /DATA/AppData/hytale-manager:/app/data
     restart: unless-stopped
-    networks:
-      - coolify
-
-networks:
-  coolify:
-    external: true
