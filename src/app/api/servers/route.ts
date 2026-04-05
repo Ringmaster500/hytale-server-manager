@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import docker, { DATA_DIR, HYTALE_IMAGE_NAME } from '@/lib/docker';
+import { checkImageExists, buildBaseImage } from '@/lib/docker-build';
 import path from 'path';
 
 export async function GET() {
@@ -29,6 +30,13 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { name, port = 25565 } = await req.json();
+    
+    // Auto-build the base image if it's missing
+    if (!(await checkImageExists())) {
+      console.log(`Image ${HYTALE_IMAGE_NAME} missing. Triggering auto-build...`);
+      await buildBaseImage();
+      console.log(`Auto-build of ${HYTALE_IMAGE_NAME} complete.`);
+    }
     
     if (!name) {
       return NextResponse.json({ error: 'Server name is required' }, { status: 400 });
