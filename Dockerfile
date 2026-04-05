@@ -1,5 +1,5 @@
 FROM eclipse-temurin:21-jre-jammy as java_base
-FROM node:20-bookworm
+FROM node:20-bullseye
 
 # Copy Java 21 from the stage
 COPY --from=java_base /opt/java/openjdk /opt/java/openjdk
