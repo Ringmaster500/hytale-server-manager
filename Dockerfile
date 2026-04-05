@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22-alpine
  
 # Set memory limit for Node processes (helps prevent segfaults on resource-constrained hosts)
 ENV NODE_OPTIONS="--max-old-space-size=2048"
