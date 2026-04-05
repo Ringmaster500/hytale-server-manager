@@ -13,11 +13,15 @@ RUN npm ci
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-# COPY everything EXCEPT the large Hytale folder to the builder
-# This prevents the Next.js/Turbopack "out of range" crash
-COPY . .
-# We explicitly remove the large folder from the build context if it managed to sneak in
-RUN rm -rf docker/hytale-server
+
+# ONLY copy essential Next.js files to the builder
+# This avoids the "index out of range" crash from 455MB assets
+COPY src/ ./src/
+COPY public/ ./public/
+COPY package.json ./
+COPY next.config.ts ./
+COPY tsconfig.json ./
+COPY postcss.config.mjs ./
 
 # Build the Next.js site
 RUN npx next build
@@ -40,8 +44,8 @@ RUN mkdir .next
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# NOW we copy the large Hytale server folder ONLY to the final runner image
-# This avoids the build crash but keeps the manager "Self-Contained"
+# Include the large Hytale server folder ONLY in the final runner image
+# Use the Docker context to get it directly
 COPY docker/ ./docker/
 
 EXPOSE 4982
