@@ -6,10 +6,10 @@ import path from 'path';
 // GET list files
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
     const targetPath = searchParams.get('path') || '';
     
@@ -49,10 +49,10 @@ export async function GET(
 // POST upload file
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
     const targetPath = searchParams.get('path') || '';
     
@@ -87,10 +87,10 @@ export async function POST(
 // DELETE file
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
     const targetPath = searchParams.get('path');
     

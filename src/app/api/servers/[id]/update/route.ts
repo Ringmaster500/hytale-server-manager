@@ -3,10 +3,10 @@ import docker from '@/lib/docker';
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const container = docker.getContainer(id);
     const containerInfo = await container.inspect();
     
