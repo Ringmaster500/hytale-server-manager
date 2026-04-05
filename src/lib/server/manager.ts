@@ -19,6 +19,7 @@ class ServerManager {
   private coreDir: string;
   private instancesDir: string;
   private globalLogs: string[] = [];
+  private isDownloading = false;
 
   constructor() {
     this.dataDir = path.join(process.cwd(), 'data');
@@ -48,19 +49,25 @@ class ServerManager {
 
   async getSystemInfo() {
     const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
-    let jarStatus: 'missing' | 'ready' | 'corrupt' = 'missing';
+    const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
+    let jarStatus: 'missing' | 'ready' | 'corrupt' | 'downloading' = 'missing';
     let jarSize = 0;
 
-    if (existsSync(jarPath)) {
+    if (this.isDownloading) {
+      jarStatus = 'downloading';
+    } else if (existsSync(jarPath)) {
       const stats = await fs.stat(jarPath);
       jarSize = stats.size;
       jarStatus = jarSize > 1024 ? 'ready' : 'corrupt';
+    } else if (existsSync(zipPath)) {
+      jarStatus = 'corrupt'; // Needs unzip or re-pull
     }
 
     return {
       jarExists: jarStatus === 'ready',
       jarStatus,
       jarSize,
+      isDownloading: this.isDownloading,
       onboarded: this.isOnboarded(),
       instancesCount: this.instancesMap.size,
       mockMode: process.env.MOCK_SERVER === 'true',
@@ -117,15 +124,16 @@ class ServerManager {
 
   // Phase 2: Auto-Setup Logic
   async checkCoreFiles() {
+    if (this.isDownloading) return;
+
     const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
+    const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
     
     // Check if current JAR is valid
     if (existsSync(jarPath)) {
         const stats = await fs.stat(jarPath);
         if (stats.size > 1024) return; // Valid JAR
-        
-        this.addGlobalLog("[MANAGER] Detected corrupt/mock JAR. Deleting to re-pull...");
-        await fs.unlink(jarPath);
+        await fs.unlink(jarPath).catch(() => {});
     }
 
     if (process.env.MOCK_SERVER === 'true') {
@@ -134,45 +142,52 @@ class ServerManager {
         return;
     }
 
-    this.addGlobalLog("[MANAGER] No server binaries found. Launching Hytale Downloader...");
+    this.isDownloading = true;
+    this.addGlobalLog("[MANAGER] Core binaries missing/invalid. Triggering Hytale Downloader...");
     
-    // Attempt authentication and download
-    // Since we're in a container, we'll try to run it and capture the output for user info
     try {
-      // NOTE: Hytale CLI uses OAuth2/Device flow. 
-      // The CLI will print a URL/code if it's the first time.
       const downloader = spawn('hytale-downloader', ['-download-path', jarPath], {
         cwd: this.coreDir,
         env: { ...process.env }
       });
 
-      return new Promise<void>((resolve, reject) => {
-        downloader.stdout?.on('data', (data) => {
-          this.addGlobalLog(data.toString());
-        });
-        downloader.stderr?.on('data', (data) => {
-          this.addGlobalLog(`[ERROR] ${data.toString()}`);
-        });
+      await new Promise<void>((resolve, reject) => {
+        downloader.stdout?.on('data', (data) => this.addGlobalLog(data.toString()));
+        downloader.stderr?.on('data', (data) => this.addGlobalLog(`[CLI] ${data.toString()}`));
 
-        downloader.on('close', (code) => {
+        downloader.on('close', async (code) => {
           if (code === 0) {
-            this.addGlobalLog("[MANAGER] Hytale binaries downloaded successfully.");
-            resolve();
+            this.addGlobalLog("[MANAGER] Download complete. Checking for zip extraction...");
+            
+            // The downloader often saves as .jar.zip
+            if (existsSync(zipPath)) {
+                this.addGlobalLog("[MANAGER] Extracting binaries...");
+                const unzip = spawn('unzip', ['-o', zipPath, '-d', this.coreDir], { cwd: this.coreDir });
+                unzip.on('close', async (uCode) => {
+                    if (uCode === 0) {
+                        this.addGlobalLog("[MANAGER] Extraction successful.");
+                        await fs.unlink(zipPath).catch(() => {});
+                        resolve();
+                    } else {
+                        reject(new Error(`Unzip failed with code ${uCode}`));
+                    }
+                });
+            } else {
+                resolve();
+            }
           } else {
-            this.addGlobalLog(`[MANAGER] Downloader exited with code ${code}.`);
-            reject(new Error(`Hytale Downloader failed (code ${code}). Check logs for auth code.`));
+            reject(new Error(`Downloader exited with code ${code}`));
           }
         });
 
-        downloader.on('error', (err) => {
-          this.addGlobalLog(`[MANAGER] Failed to execute downloader: ${err.message}`);
-          reject(err);
-        });
+        downloader.on('error', reject);
       });
 
     } catch (e: any) {
-      this.addGlobalLog(`[MANAGER] Download failed: ${e.message}`);
+      this.addGlobalLog(`[MANAGER] Process Error: ${e.message}`);
       throw e;
+    } finally {
+      this.isDownloading = false;
     }
   }
 
