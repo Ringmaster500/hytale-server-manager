@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { serverManager } from '@/lib/server/manager';
 
 export async function GET() {
-  return NextResponse.json(serverManager.getSystemInfo());
+  return NextResponse.json(await serverManager.getSystemInfo());
 }
 
 export async function DELETE() {
