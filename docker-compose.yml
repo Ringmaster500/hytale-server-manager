@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  frontend:
+  hytale-manager:
     image: ghcr.io/${REPO_OWNER:-ringmaster500}/hytale-manager-frontend:latest
     container_name: hytale-manager-frontend
     restart: unless-stopped
@@ -10,9 +10,16 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:4983
     depends_on:
-      - backend
+      - hytale-backend
+    x-casaos:
+      author: Ringmaster500
+      category: Game
+      icon: https://hytale.com/static/images/logo.png
+      title: Hytale Server Manager
+      main: hytale-manager
+      port_map: "4982"
 
-  backend:
+  hytale-backend:
     image: ghcr.io/${REPO_OWNER:-ringmaster500}/hytale-manager-backend:latest
     container_name: hytale-manager-backend
     restart: unless-stopped
@@ -25,11 +32,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /DATA/AppData/hytale-manager/instances:/DATA/AppData/hytale-manager/instances
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: hytale-manager-tunnel
-    restart: unless-stopped
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    x-casaos:
+      author: Ringmaster500
+      category: Utility
+      icon: https://hytale.com/static/images/logo.png
+      title: Hytale Manager API
