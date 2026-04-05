@@ -3,42 +3,37 @@
 ## 🤖 AI Agent System Context & Capabilities
 **Read this before executing any steps:**
 * **Environment Status:** You are running in an environment fully authenticated with the GitHub CLI (`gh`).
-* **Architecture Shift:** The deployment target is **CasaOS**.
-* **Automation Mandate:** Use `gh` to create the GitHub repository. Focus entirely on building the Next.js UI, Node.js API, and the CI/CD pipeline.
-* **Tech Stack:** Next.js (Frontend), Node.js (Backend API), Docker/Docker Compose.
+* **Architecture Shift:** The deployment target is **Coolify** using a **Unified Next.js Application**.
+* **Automation Mandate:** Consolidated frontend and backend into a single Next.js app. The backend logic now lives in `src/app/api`.
+* **Tech Stack:** Next.js (Frontend + API), Node.js (Runtime), Dockerode.
 
 ---
 
-## Phase 1: Project Initialization & Next/Node Setup
-- [x] Initialize a new monorepo directory structure (`/frontend`, `/backend`, `/docker`).
-- [x] Use GitHub CLI (`gh repo create`) to create a new private repository and push the initial commit.
-- [x] Initialize the Node.js backend (`npm init`) and install necessary packages (Express, `dockerode` for Docker socket interaction, `cors`, `dotenv`).
-- [x] Initialize the Next.js frontend (`npx create-next-app`) with Tailwind CSS.
+## Phase 1: Project Consolidation
+- [x] Merge `/frontend` and `/backend` into a single root-level Next.js project.
+- [x] Add `dockerode` and `@types/dockerode` to the main `package.json`.
+- [x] Configure `next.config.ts` for `standalone` output for efficient Docker imaging.
 
-## Phase 2: Node.js Backend API (The "Brain")
-- [x] Create the server entry point (`index.js`).
-- [x] Connect the backend to the local Docker daemon using the `dockerode` library.
-- [x] Build `GET /servers`: Scans the host's Docker containers to list active Hytale servers.
-- [x] Build `POST /servers/create`: Generates a container configuration for a specific Hytale instance and spins it up.
-- [x] Build `POST /servers/:id/power`: Sends start/stop/restart commands to specific containers.
-- [x] Build `POST /servers/:id/update`: Triggers the container restart sequence to invoke the Hytale Downloader CLI.
-- [x] Build file management endpoints: APIs to upload, read, and delete `.jar` or `.hymod` files in the mapped CasaOS volume directories.
+## Phase 2: Unified API Routes (Next.js)
+- [x] Migrate backend logic to `src/app/api/servers/`.
+- [x] Implement Docker socket connection in `src/lib/docker.ts`.
+- [x] Create API routes for server listing, creation, power management, and file operations.
+- [x] Ensure `DATA_DIR` and `DOCKER_SOCKET` environment variables are supported.
 
-## Phase 3: Next.js Frontend (The "Dashboard")
-- [x] Create a clean, dark-mode layout.
-- [x] Build the **Overview Page**: Fetch and display a list of all managed Hytale servers with their current power status.
-- [x] Build the **Server Controls**: Add functional "Start," "Stop," "Restart," and "Update" buttons hooked to the Node API.
-- [x] Build the **Mod Manager UI**: A drag-and-drop interface for uploading mod files directly to a specific server instance via the API.
-- [ ] Build the **Console View** (Optional): Stream container logs (via the API) to a text box in the UI.
+## Phase 3: Dashboard Refinement
+- [x] Update frontend to use relative `/api` paths (same origin).
+- [x] Ensure dark-mode UI and Luce-react icons are functioning within the single project.
+- [x] Test the Mod Manager's file upload/delete logic within the Next.js API context.
 
-## Phase 4: CI/CD Pipeline Setup (GitHub Actions)
-- [x] Create `.github/workflows/build-and-push.yml`.
-- [x] Configure the workflow to build the Node.js API Docker image and Next.js UI Docker image on every push to `main`.
-- [x] Configure the workflow to push these images to the GitHub Container Registry (GHCR).
+## Phase 4: Coolify One-Click Optimization
+- [x] Create a production-ready `Dockerfile` at the repository root.
+- [x] Use a multi-stage build process to keep the final image small and secure.
+- [x] Expose port 3000 as the single entry point for both UI and API.
+- [x] Ensure the `nextjs` system user has appropriate permissions for the internal `.next` directory.
 
-## Phase 5: The CasaOS Deployment Package
-- [x] Create the master `docker-compose.yml` file in the root directory.
-- [x] Configure the compose file to pull the frontend and backend images from GHCR.
-- [x] Configure the `cloudflared` tunnel container within the compose file to securely expose the Next.js UI.
-- [x] Configure volume mappings to use CasaOS standard paths (e.g., `/DATA/AppData/hytale-manager/instances`).
-- [x] **Final Step:** The developer copies this `docker-compose.yml` text and pastes it into the "Import" function in the CasaOS web UI.
+## Phase 5: Deployment
+- [x] **Final Step:** In Coolify, create a "New Application" from your GitHub App.
+- [x] Select this repository. Coolify will detect the `Dockerfile` and handle the rest.
+- [x] **Required Settings:** In the Coolify UI, go to the "Volumes" tab and mount `/var/run/docker.sock` to `/var/run/docker.sock`.
+- [x] Add the `DATA_DIR` environment variable to point to your Hytale data storage path.
+

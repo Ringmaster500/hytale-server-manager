@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Server, Power, Play, Square, RotateCcw, RefreshCw, FolderOpen, Terminal, X, Upload } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4983";
+const API_URL = "/api";
 
 export default function Home() {
   const [servers, setServers] = useState<any[]>([]);
