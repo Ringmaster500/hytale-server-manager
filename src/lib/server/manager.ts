@@ -88,7 +88,23 @@ class ServerManager {
     inst.logs.push(`[MANAGER] Starting Hytale Server instance: ${id}...\n`);
 
     try {
-      // Spawn Java process
+      // Phase 2: Process Control
+      if (process.env.MOCK_SERVER === 'true') {
+        // Simulated process for testing UI without real JARs
+        this.addLog(id, `[MOCK] Booting virtual Hytale engine...\n`);
+        this.addLog(id, `[MOCK] Loading world data...\n`);
+        
+        setTimeout(() => {
+          if (inst.status === 'starting') {
+            inst.status = 'online';
+            this.addLog(id, `[MOCK] Server started on port ${inst.port}!\n`);
+          }
+        }, 2000);
+        
+        return inst;
+      }
+
+      // Real Java process spawn
       // Using -Xmx1G. In a real scenario, this would be configurable.
       const proc = spawn('java', ['-Xmx1024M', '-jar', jarPath], {
         cwd: instanceDir,
@@ -101,6 +117,10 @@ class ServerManager {
       proc.stdout?.on('data', (data) => {
         const line = data.toString();
         this.addLog(id, line);
+        // Basic detection of "Started"
+        if (line.toLowerCase().includes('started') || line.toLowerCase().includes('done')) {
+          inst.status = 'online';
+        }
       });
 
       proc.stderr?.on('data', (data) => {
@@ -121,18 +141,6 @@ class ServerManager {
         inst.status = 'error';
         inst.process = undefined;
       });
-
-      // Mock 'online' state for demonstration if java isn't actually executing (e.g., mock jar)
-      if (process.env.MOCK_SERVER === 'true' || !existsSync(jarPath)) {
-        setTimeout(() => {
-           if (inst.status === 'starting') inst.status = 'online';
-        }, 1000);
-      } else {
-        // Normal detection would check logs for "Server Started"
-        setTimeout(() => {
-          if (inst.status === 'starting') inst.status = 'online';
-        }, 5000);
-      }
 
     } catch (e: any) {
       this.addLog(id, `[CRITICAL] Failed to spawn process: ${e.message}\n`);
