@@ -1,7 +1,8 @@
-FROM node:20
+FROM eclipse-temurin:21-jre-jammy as java_base
+FROM node:20-bookworm
 
-# Copy Java 21 from official Temurin image
-COPY --from=eclipse-temurin:21-jre-jammy /opt/java/openjdk /opt/java/openjdk
+# Copy Java 21 from the stage
+COPY --from=java_base /opt/java/openjdk /opt/java/openjdk
 
 # Set environment variables for Java
 ENV JAVA_HOME=/opt/java/openjdk
