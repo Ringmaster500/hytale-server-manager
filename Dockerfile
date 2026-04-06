@@ -1,13 +1,13 @@
-FROM node:20-bookworm-slim
+FROM node:20.18-bookworm-slim
 
 # Force cache bust to bypass host-level corruption
-LABEL cache_bust="2026-04-06-002"
+LABEL cache_bust="2026-04-06-003"
 
 # Set memory limit for Node
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
-# Copy Java 21 from official Temurin image directly (no named stage)
-COPY --from=eclipse-temurin:21-jre-jammy /opt/java/openjdk /opt/java/openjdk
+# Using 'noble' (Ubuntu 24.04) tag to force a fresh, uncorrupted layer download
+COPY --from=eclipse-temurin:21-jre-noble /opt/java/openjdk /opt/java/openjdk
 
 # Set environment variables for Java
 ENV JAVA_HOME=/opt/java/openjdk
