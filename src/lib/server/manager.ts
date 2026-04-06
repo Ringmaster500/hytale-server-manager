@@ -42,7 +42,6 @@ class ServerManager {
   async resetConfig() {
     const configPath = path.join(this.dataDir, 'config.json');
     if (existsSync(configPath)) await fs.unlink(configPath);
-    // Be careful with deleting everything - user might have huge assets
     this.addGlobalLog("[MANAGER] Configuration reset.");
   }
 
@@ -77,7 +76,7 @@ class ServerManager {
       jarSize = stats.size;
       jarStatus = 'ready';
     } else if (existsSync(zipPath) || existsSync(assetsZip)) {
-      jarStatus = 'corrupt'; // Needs unzip or re-pull
+      jarStatus = 'corrupt';
     }
 
     return {
@@ -117,8 +116,10 @@ class ServerManager {
 
   private async loadInstances() {
     try {
+      if (!existsSync(this.instancesDir)) return;
       const dirs = await fs.readdir(this.instancesDir);
       for (const id of dirs) {
+        if (this.instancesMap.has(id)) continue;
         const instanceDir = path.join(this.instancesDir, id);
         const stats = await fs.stat(instanceDir);
         if (stats.isDirectory()) {
@@ -161,88 +162,43 @@ class ServerManager {
     console.log(`[SYS] ${message}`);
   }
 
-  // Phase 2: Auto-Setup Logic
-  async ensureAssets() {
-    const assetsZip = path.join(this.coreDir, 'Assets.zip');
-    const commonDir = path.join(this.coreDir, 'Common');
-    
-    if (existsSync(commonDir) && existsSync(assetsZip)) {
-        await fs.unlink(assetsZip).catch(() => {});
-        this.addGlobalLog("[MANAGER] Assets already present. Cleaned up zip.");
-        return;
-    }
-
-    if (!existsSync(assetsZip)) return;
-
-    this.addGlobalLog("[MANAGER] Found Assets.zip. Extracting massive asset pack (this may take a minute)...");
-    const unzipAssets = spawn('unzip', ['-o', assetsZip, '-d', this.coreDir], { cwd: this.coreDir });
-    
-    await new Promise<void>((resolve) => {
-        unzipAssets.on('close', async () => {
-            this.addGlobalLog("[MANAGER] Assets extracted successfully.");
-            await fs.unlink(assetsZip).catch(() => {});
-            resolve();
-        });
-    });
-  }
-
   async checkCoreFiles() {
-    await this.ensureAssets();
     if (this.isDownloading) return;
 
     const currentJar = await this.getJarPath();
     if (currentJar) return;
 
-    if (process.env.MOCK_SERVER === 'true') {
-        this.addGlobalLog("[MANAGER] MOCK_SERVER is enabled. Skipping binaries pull.");
-        await fs.writeFile(path.join(this.coreDir, 'hytaleserver.jar'), 'MOCK_HYTALE_JAR_CONTENT');
-        return;
-    }
-
     this.isDownloading = true;
-    this.addGlobalLog("[MANAGER] Core binaries missing/invalid. Triggering Hytale Downloader...");
+    this.addGlobalLog("[MANAGER] Core binaries missing. Triggering downloader...");
     
     try {
       const downloadTarget = path.join(this.coreDir, 'hytaleserver.jar');
       const downloader = spawn('hytale-downloader', ['-download-path', downloadTarget], {
         cwd: this.coreDir,
-        env: { ...process.env }
       });
 
       await new Promise<void>((resolve, reject) => {
-        downloader.stdout?.on('data', (data) => this.addGlobalLog(data.toString()));
-        downloader.stderr?.on('data', (data) => this.addGlobalLog(`[CLI] ${data.toString()}`));
-
         downloader.on('close', async (code) => {
           if (code === 0) {
-            this.addGlobalLog("[MANAGER] Download complete. Checking for zip extraction...");
             const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
             if (existsSync(zipPath)) {
                 this.addGlobalLog("[MANAGER] Extracting binaries...");
                 const unzip = spawn('unzip', ['-o', zipPath, '-d', this.coreDir], { cwd: this.coreDir });
-                unzip.on('close', async (uCode) => {
-                    if (uCode === 0) {
-                        this.addGlobalLog("[MANAGER] Extraction successful.");
-                        await fs.unlink(zipPath).catch(() => {});
-                        resolve();
-                    } else {
-                        reject(new Error(`Unzip failed with code ${uCode}`));
-                    }
+                unzip.on('close', async () => {
+                    await fs.unlink(zipPath).catch(() => {});
+                    resolve();
                 });
             } else {
                 resolve();
             }
           } else {
-            reject(new Error(`Downloader exited with code ${code}`));
+            reject(new Error(`Exit code ${code}`));
           }
         });
-
         downloader.on('error', reject);
       });
-
     } catch (e: any) {
-      this.addGlobalLog(`[MANAGER] Process Error: ${e.message}`);
-      throw e;
+      this.addGlobalLog(`[ERROR] ${e.message}`);
     } finally {
       this.isDownloading = false;
     }
@@ -251,25 +207,15 @@ class ServerManager {
   async createInstance(name: string, port: number) {
     const id = name.toLowerCase().replace(/\s+/g, '-');
     const instanceDir = path.join(this.instancesDir, id);
+    if (existsSync(instanceDir)) throw new Error(`Instance ${id} exists`);
 
-    if (existsSync(instanceDir) || this.instancesMap.has(id)) {
-      throw new Error(`Instance ${id} already exists`);
-    }
-
+    await fs.mkdir(instanceDir, { recursive: true });
     await fs.mkdir(path.join(instanceDir, 'mods'), { recursive: true });
-    await fs.mkdir(path.join(instanceDir, 'config'), { recursive: true });
 
-    const props = `server.port=${port}\nserver.name=${name}\nmax-players=20\nversion=1.0.0\n`;
+    const props = `server.port=${port}\nserver.name=${name}\nmax-players=20\n`;
     await fs.writeFile(path.join(instanceDir, 'server.properties'), props);
 
-    const instance: ServerInstance = {
-      id,
-      name,
-      port,
-      status: 'offline',
-      logs: [],
-    };
-
+    const instance: ServerInstance = { id, name, port, status: 'offline', logs: [] };
     this.instancesMap.set(id, instance);
     return instance;
   }
@@ -279,66 +225,31 @@ class ServerManager {
     if (!inst) throw new Error(`Instance ${id} not found`);
     if (inst.status === 'online' || inst.status === 'starting') return inst;
 
-    await this.ensureAssets();
-
-    const currentJar = await this.getJarPath();
-    if (!currentJar) {
-      await this.checkCoreFiles();
+    const jarPath = await this.getJarPath();
+    if (!jarPath) {
+        await this.checkCoreFiles();
     }
-    
-    const doubleCheckJar = await this.getJarPath();
-    if (!doubleCheckJar) throw new Error("Hytale Server JAR not found even after setup attempt.");
+    const finalJar = await this.getJarPath();
+    if (!finalJar) throw new Error("JAR not found.");
 
     const instanceDir = path.join(this.instancesDir, id);
-    const coreServerDir = path.dirname(doubleCheckJar);
 
-    // Deep symlink Logic
+    // Official Asset Linking Logic
     try {
-        const potentialFolders = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs', 'Libraries', 'Common'];
-        const parentDir = path.dirname(coreServerDir);
-        const searchDirs = [coreServerDir, parentDir, this.coreDir];
-        const foldersToLink: Set<string> = new Set(potentialFolders);
-
-        for (const dir of searchDirs) {
-            if (existsSync(dir)) {
-                const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
-                entries.filter(e => e.isDirectory()).forEach(e => {
-                    if (!['instances', 'Server', 'test', 'data'].includes(e.name)) {
-                        foldersToLink.add(e.name);
-                    }
-                });
-            }
+        // Link the Assets.zip file directly (not unzipped)
+        const masterAssetsZip = path.join(this.coreDir, 'Assets.zip');
+        if (existsSync(masterAssetsZip)) {
+            const destZip = path.join(instanceDir, 'Assets.zip');
+            if (!existsSync(destZip)) await fs.link(masterAssetsZip, destZip).catch(() => fs.copyFile(masterAssetsZip, destZip));
         }
 
-        const findManifest = async (dir: string, depth = 0): Promise<string | null> => {
-            if (depth > 2) return null;
-            const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
-            for (const entry of entries) {
-                const fullPath = path.join(dir, entry.name);
-                if (entry.isDirectory()) {
-                    if (entry.name === 'HytaleAssets' || entry.name === 'Content' || entry.name === 'Packs' || entry.name === 'mods') return fullPath;
-                    const found = await findManifest(fullPath, depth + 1);
-                    if (found) return found;
-                }
-            }
-            return null;
-        };
-
-        for (const folder of Array.from(foldersToLink)) {
-            let src = path.join(coreServerDir, folder);
-            if (!existsSync(src)) src = path.join(parentDir, folder);
-            if (!existsSync(src)) src = path.join(this.coreDir, folder);
-            
-            if (folder === 'HytaleAssets' && !existsSync(src)) {
-                src = await findManifest(this.coreDir) || src;
-            }
-
+        // Link external dependencies
+        const dependencyDirs = ['Libraries', 'Native', 'Common', 'Server/Licenses'];
+        for (const dep of dependencyDirs) {
+            const src = path.join(this.coreDir, dep);
             if (existsSync(src)) {
-                const dest = path.join(instanceDir, folder);
-                if (!existsSync(dest)) {
-                    await fs.symlink(src, dest, 'dir');
-                    this.addLog(id, `[MANAGER] Linked ${folder}\n`);
-                }
+                const dest = path.join(instanceDir, path.basename(dep));
+                if (!existsSync(dest)) await fs.symlink(src, dest, 'dir');
             }
         }
     } catch (e: any) {
@@ -346,71 +257,54 @@ class ServerManager {
     }
 
     inst.status = 'starting';
-    inst.logs.push(`[MANAGER] Starting Hytale Server instance: ${id}...\n`);
+    inst.logs.push(`[MANAGER] Launching Hytale Instance (Official Assets Mode)...\n`);
 
-    try {
-      const proc = spawn('java', ['-Xmx1024M', '-jar', doubleCheckJar], {
-        cwd: instanceDir,
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
+    const proc = spawn('java', [
+        '-Xmx1024M', 
+        '-jar', finalJar,
+        '--assets', 'Assets.zip',
+        '--backup',
+        '--backup-dir', 'backups',
+        '--backup-frequency', '30'
+    ], {
+      cwd: instanceDir,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
 
-      inst.process = proc;
-
-      proc.stdout?.on('data', (data) => {
-        const line = data.toString();
-        this.addLog(id, line);
-        if (line.toLowerCase().includes('started') || line.toLowerCase().includes('done')) {
-          inst.status = 'online';
-        }
-      });
-
-      proc.stderr?.on('data', (data) => {
-        this.addLog(id, `[ERROR] ${data.toString()}`);
-      });
-
-      proc.on('close', (code) => {
-        this.addLog(id, `[MANAGER] Server stopped with code ${code}\n`);
-        inst.status = 'offline';
-        inst.process = undefined;
-      });
-
-      proc.on('error', (err) => {
-        this.addLog(id, `[CRITICAL] Process error: ${err.message}\n`);
-        inst.status = 'error';
-        inst.process = undefined;
-      });
-
-    } catch (e: any) {
-      this.addLog(id, `[CRITICAL] Failed to spawn: ${e.message}\n`);
-      inst.status = 'error';
-    }
+    inst.process = proc;
+    proc.stdout?.on('data', (data) => {
+      const line = data.toString();
+      this.addLog(id, line);
+      if (line.includes('started') || line.includes('done')) inst.status = 'online';
+    });
+    proc.stderr?.on('data', (d) => this.addLog(id, d.toString()));
+    proc.on('close', (c) => {
+      this.addLog(id, `[MANAGER] Process exited with code ${c}\n`);
+      inst.status = 'offline';
+      inst.process = undefined;
+    });
 
     return inst;
   }
 
   stopServer(id: string) {
     const inst = this.instancesMap.get(id);
-    if (!inst || !inst.process) return;
-    inst.logs.push(`[MANAGER] Stopping server...\n`);
-    inst.process.kill('SIGINT');
+    if (inst?.process) inst.process.kill('SIGINT');
   }
 
   async deleteInstance(id: string) {
     const inst = this.instancesMap.get(id);
-    if (!inst) throw new Error(`Instance ${id} not found`);
-    if (inst.status !== 'offline') throw new Error(`Stop server first.`);
-    
-    const instanceDir = path.join(this.instancesDir, id);
-    await fs.rm(instanceDir, { recursive: true, force: true });
+    if (!inst || inst.status !== 'offline') throw new Error("Busy or missing");
+    await fs.rm(path.join(this.instancesDir, id), { recursive: true, force: true });
     this.instancesMap.delete(id);
-    this.addGlobalLog(`[MANAGER] Instance deleted: ${id}`);
   }
 
   private addLog(id: string, message: string) {
     const inst = this.instancesMap.get(id);
-    if (!inst) return;
-    inst.logs.push(message);
-    if (inst.logs.length > 500) inst.logs.shift();
+    if (inst) {
+      inst.logs.push(message);
+      if (inst.logs.length > 500) inst.logs.shift();
+    }
   }
 
   getInstances() {
@@ -420,15 +314,12 @@ class ServerManager {
   getInstance(id: string) {
     const inst = this.instancesMap.get(id);
     if (!inst) return undefined;
-    const { process, ...rest } = inst;
-    return rest;
+    return { ...inst, process: undefined };
   }
 
   sendCommand(id: string, command: string) {
     const inst = this.instancesMap.get(id);
-    if (!inst || !inst.process || !inst.process.stdin) return;
-    inst.process.stdin.write(`${command}\n`);
-    this.addLog(id, `> ${command}\n`);
+    if (inst?.process?.stdin) inst.process.stdin.write(`${command}\n`);
   }
 }
 
