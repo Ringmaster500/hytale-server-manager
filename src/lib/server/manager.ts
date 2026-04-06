@@ -390,6 +390,8 @@ class ServerManager {
 
     const proc = spawn('java', [
         `-Xmx${inst.maxRam}M`, 
+        '-XX:+UseParallelGC',
+        '-Dsentry.enabled=false',
         '-jar', finalJar,
         '--assets', 'Assets.zip',
         '--backup',
