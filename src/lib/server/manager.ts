@@ -163,13 +163,23 @@ class ServerManager {
   }
 
   // Phase 2: Auto-Setup Logic
+  async ensureAssets() {
+    const assetsZip = path.join(this.coreDir, 'Assets.zip');
+    if (!existsSync(assetsZip)) return;
+
+    this.addGlobalLog("[MANAGER] Found Assets.zip. Extracting...");
+    const unzipAssets = spawn('unzip', ['-o', assetsZip, '-d', this.coreDir], { cwd: this.coreDir });
+    await new Promise((res) => unzipAssets.on('close', res));
+    await fs.unlink(assetsZip).catch(() => {});
+    this.addGlobalLog("[MANAGER] Assets extracted successfully.");
+  }
+
   async checkCoreFiles() {
+    await this.ensureAssets();
     if (this.isDownloading) return;
 
     const currentJar = await this.getJarPath();
-    const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
-    
-    if (currentJar) return; // Already installed
+    if (currentJar) return; // JAR is already there
 
     if (process.env.MOCK_SERVER === 'true') {
         this.addGlobalLog("[MANAGER] MOCK_SERVER is enabled. Skipping binaries pull.");
@@ -195,6 +205,7 @@ class ServerManager {
           if (code === 0) {
             this.addGlobalLog("[MANAGER] Download complete. Checking for zip extraction...");
             
+            const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
             // The downloader often saves as .jar.zip
             if (existsSync(zipPath)) {
                 this.addGlobalLog("[MANAGER] Extracting binaries...");
