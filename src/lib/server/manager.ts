@@ -262,15 +262,30 @@ class ServerManager {
     if (inst.status === 'online' || inst.status === 'starting') return inst;
 
     // Check if CORE files exist
-    const jarPath = await this.getJarPath();
-    if (!jarPath) {
-        await this.checkCoreFiles();
-    }
-    
     const finalJar = await this.getJarPath();
     if (!finalJar) throw new Error("Hytale Server JAR not found even after setup attempt.");
 
     const instanceDir = path.join(this.instancesDir, id);
+    const coreServerDir = path.dirname(finalJar);
+
+    // Symlink shared assets (Content/Packs) to the instance directory
+    try {
+        const assetFolders = ['Content', 'Packs', 'Lib', 'Native'];
+        for (const folder of assetFolders) {
+            const src = path.join(coreServerDir, folder);
+            const dest = path.join(instanceDir, folder);
+            
+            if (existsSync(src)) {
+                // If destination exists but is not a symlink, we might want to back it up or skip
+                if (!existsSync(dest)) {
+                    await fs.symlink(src, dest, 'dir');
+                    this.addLog(id, `[MANAGER] Linked shared asset folder: ${folder}\n`);
+                }
+            }
+        }
+    } catch (e: any) {
+        this.addLog(id, `[MANAGER] Warning: Failed to link shared assets: ${e.message}\n`);
+    }
 
     inst.status = 'starting';
     inst.logs.push(`[MANAGER] Starting Hytale Server instance: ${id}...\n`);
