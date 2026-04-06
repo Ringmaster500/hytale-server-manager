@@ -270,27 +270,34 @@ class ServerManager {
 
     // Symlink shared assets (Content/Packs/HytaleAssets/mods) to the instance directory
     try {
-        const potentialAssets = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs'];
+        const potentialAssets = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs', 'Libraries'];
+        const parentDir = path.dirname(coreServerDir);
         
-        // Also look for any directory in core that isn't the instance itself
-        const coreEntries = await fs.readdir(coreServerDir, { withFileTypes: true });
-        const coreFolders = coreEntries.filter(e => e.isDirectory()).map(e => e.name);
-        
-        const toLink = Array.from(new Set([...potentialAssets, ...coreFolders]));
+        const searchDirs = [coreServerDir, parentDir];
+        const toLink: Set<string> = new Set(potentialAssets);
 
-        for (const folder of toLink) {
-            const src = path.join(coreServerDir, folder);
+        for (const dir of searchDirs) {
+            if (existsSync(dir)) {
+                const entries = await fs.readdir(dir, { withFileTypes: true });
+                entries.filter(e => e.isDirectory()).forEach(e => toLink.add(e.name));
+            }
+        }
+
+        for (const folder of Array.from(toLink)) {
+            // Find WHERE the source folder actually is (check specific then parent)
+            let src = path.join(coreServerDir, folder);
+            if (!existsSync(src)) {
+                src = path.join(parentDir, folder);
+            }
+
             const dest = path.join(instanceDir, folder);
             
-            // Skip linking instances to themselves or existing instance-specific data
-            if (folder === 'instances' || folder === 'data' && existsSync(path.join(instanceDir, 'server.properties'))) {
-                continue;
-            }
+            if (folder === 'instances' || folder === 'test' || folder === 'Server') continue;
 
             if (existsSync(src)) {
                 if (!existsSync(dest)) {
                     await fs.symlink(src, dest, 'dir');
-                    this.addLog(id, `[MANAGER] Linked shared folder: ${folder}\n`);
+                    this.addLog(id, `[MANAGER] Linked shared folder: ${folder} (found in ${path.basename(path.dirname(src))})\n`);
                 }
             }
         }
