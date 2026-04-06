@@ -229,11 +229,15 @@ class ServerManager {
     if (inst.status === 'online' || inst.status === 'starting') return inst;
 
     const jarPath = await this.getJarPath();
-    if (!jarPath) {
+    const assetsZip = path.join(this.coreDir, 'Assets.zip');
+    
+    // If we're missing the JAR OR the essential Assets.zip, trigger recovery
+    if (!jarPath || !existsSync(assetsZip)) {
         await this.checkCoreFiles();
     }
+    
     const finalJar = await this.getJarPath();
-    if (!finalJar) throw new Error("JAR not found.");
+    if (!finalJar) throw new Error("Hytale JAR still missing after recovery attempt.");
 
     const instanceDir = path.join(this.instancesDir, id);
 
