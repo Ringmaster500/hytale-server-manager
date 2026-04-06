@@ -272,12 +272,20 @@ class ServerManager {
     if (!inst) throw new Error(`Instance ${id} not found`);
     if (inst.status === 'online' || inst.status === 'starting') return inst;
 
+    // ALWAYS ensure assets are extracted first, regardless of JAR status
+    await this.ensureAssets();
+
     // Check if CORE files exist
     const finalJar = await this.getJarPath();
-    if (!finalJar) throw new Error("Hytale Server JAR not found even after setup attempt.");
+    if (!finalJar) {
+        await this.checkCoreFiles();
+    }
+    
+    const doubleCheckJar = await this.getJarPath();
+    if (!doubleCheckJar) throw new Error("Hytale Server JAR not found even after setup attempt.");
 
     const instanceDir = path.join(this.instancesDir, id);
-    const coreServerDir = path.dirname(finalJar);
+    const coreServerDir = path.dirname(doubleCheckJar);
 
     // Symlink shared assets (Content/Packs/HytaleAssets/mods) to the instance directory
     try {
@@ -357,7 +365,7 @@ class ServerManager {
 
       // Real Java process spawn
       // Using -Xmx1G. In a real scenario, this would be configurable.
-      const proc = spawn('java', ['-Xmx1024M', '-jar', finalJar], {
+      const proc = spawn('java', ['-Xmx1024M', '-jar', doubleCheckJar], {
         cwd: instanceDir,
         stdio: ['pipe', 'pipe', 'pipe']
       });
