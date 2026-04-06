@@ -47,30 +47,47 @@ class ServerManager {
     this.addGlobalLog("[MANAGER] System configuration reset.");
   }
 
+  private async getJarPath(): Promise<string | null> {
+    const options = [
+      path.join(this.coreDir, 'hytaleserver.jar'),
+      path.join(this.coreDir, 'HytaleServer.jar'),
+      path.join(this.coreDir, 'Server', 'HytaleServer.jar'),
+      path.join(this.coreDir, 'Server', 'hytaleserver.jar'),
+    ];
+
+    for (const p of options) {
+      if (existsSync(p)) {
+        const stats = await fs.stat(p);
+        if (stats.size > 1024) return p;
+      }
+    }
+    return null;
+  }
+
   async getSystemInfo() {
-    const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
+    const currentJar = await this.getJarPath();
     const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
     let jarStatus: 'missing' | 'ready' | 'corrupt' | 'downloading' = 'missing';
     let jarSize = 0;
 
     if (this.isDownloading) {
       jarStatus = 'downloading';
-    } else if (existsSync(jarPath)) {
-      const stats = await fs.stat(jarPath);
+    } else if (currentJar) {
+      const stats = await fs.stat(currentJar);
       jarSize = stats.size;
-      jarStatus = jarSize > 1024 ? 'ready' : 'corrupt';
+      jarStatus = 'ready';
     } else if (existsSync(zipPath)) {
       jarStatus = 'corrupt'; // Needs unzip or re-pull
     }
 
     return {
-      jarExists: jarStatus === 'ready',
+      jarExists: !!currentJar,
+      jarPath: currentJar,
       jarStatus,
       jarSize,
       isDownloading: this.isDownloading,
       onboarded: this.isOnboarded(),
       instancesCount: this.instancesMap.size,
-      mockMode: process.env.MOCK_SERVER === 'true',
       nodeVersion: process.version,
       coreFiles: await this.listFiles('core').catch(() => []),
     };
@@ -149,19 +166,14 @@ class ServerManager {
   async checkCoreFiles() {
     if (this.isDownloading) return;
 
-    const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
+    const currentJar = await this.getJarPath();
     const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
     
-    // Check if current JAR is valid
-    if (existsSync(jarPath)) {
-        const stats = await fs.stat(jarPath);
-        if (stats.size > 1024) return; // Valid JAR
-        await fs.unlink(jarPath).catch(() => {});
-    }
+    if (currentJar) return; // Already installed
 
     if (process.env.MOCK_SERVER === 'true') {
         this.addGlobalLog("[MANAGER] MOCK_SERVER is enabled. Skipping binaries pull.");
-        await fs.writeFile(jarPath, 'MOCK_HYTALE_JAR_CONTENT');
+        await fs.writeFile(path.join(this.coreDir, 'hytaleserver.jar'), 'MOCK_HYTALE_JAR_CONTENT');
         return;
     }
 
@@ -169,7 +181,8 @@ class ServerManager {
     this.addGlobalLog("[MANAGER] Core binaries missing/invalid. Triggering Hytale Downloader...");
     
     try {
-      const downloader = spawn('hytale-downloader', ['-download-path', jarPath], {
+      const downloadTarget = path.join(this.coreDir, 'hytaleserver.jar');
+      const downloader = spawn('hytale-downloader', ['-download-path', downloadTarget], {
         cwd: this.coreDir,
         env: { ...process.env }
       });
@@ -249,10 +262,15 @@ class ServerManager {
     if (inst.status === 'online' || inst.status === 'starting') return inst;
 
     // Check if CORE files exist
-    await this.checkCoreFiles();
+    const jarPath = await this.getJarPath();
+    if (!jarPath) {
+        await this.checkCoreFiles();
+    }
+    
+    const finalJar = await this.getJarPath();
+    if (!finalJar) throw new Error("Hytale Server JAR not found even after setup attempt.");
 
     const instanceDir = path.join(this.instancesDir, id);
-    const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
 
     inst.status = 'starting';
     inst.logs.push(`[MANAGER] Starting Hytale Server instance: ${id}...\n`);
@@ -276,7 +294,7 @@ class ServerManager {
 
       // Real Java process spawn
       // Using -Xmx1G. In a real scenario, this would be configurable.
-      const proc = spawn('java', ['-Xmx1024M', '-jar', jarPath], {
+      const proc = spawn('java', ['-Xmx1024M', '-jar', finalJar], {
         cwd: instanceDir,
         stdio: ['pipe', 'pipe', 'pipe']
       });
