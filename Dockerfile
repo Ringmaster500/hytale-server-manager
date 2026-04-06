@@ -3,8 +3,8 @@ FROM node:20.18-bookworm
 # Set memory limit for Node
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
-# Using 'noble' (Ubuntu 24.04) tag for Java
-COPY --from=eclipse-temurin:21-jre-noble /opt/java/openjdk /opt/java/openjdk
+# Using 'bookworm' (Debian 12) tag for Java to match the base image
+COPY --from=eclipse-temurin:21-jre-bookworm /opt/java/openjdk /opt/java/openjdk
 
 # Set environment variables for Java
 ENV JAVA_HOME=/opt/java/openjdk
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     procps \
     unzip \
+    libjemalloc2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and install Hytale Downloader CLI

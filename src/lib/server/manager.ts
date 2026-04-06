@@ -395,6 +395,8 @@ class ServerManager {
         '-XX:MaxDirectMemorySize=1G',
         '-XX:-UseCompressedOops',
         '-Dsentry.enabled=false',
+        '-Dio.netty.allocator.type=unpooled',
+        '-Dio.netty.noNative=true',
         '-jar', finalJar,
         '--assets', 'Assets.zip',
         '--backup',
@@ -402,6 +404,11 @@ class ServerManager {
         '--backup-frequency', '30'
     ], {
       cwd: instanceDir,
+      env: {
+          ...process.env,
+          LD_PRELOAD: '/usr/lib/x86_64-linux-gnu/libjemalloc.so.2',
+          LD_LIBRARY_PATH: 'Native:.'
+      },
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
