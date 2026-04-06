@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerManager } from '@/lib/server/manager';
+import { serverManager } from '@/lib/server/manager';
 
 export async function POST(
   req: NextRequest,
@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { id } = await params;
     const { maxRam, port } = await req.json();
-    const manager = getServerManager();
+    const manager = serverManager;
     
     const updated = await manager.updateInstanceSettings(id, { 
       maxRam: maxRam ? parseInt(maxRam) : undefined,
