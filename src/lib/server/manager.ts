@@ -281,35 +281,54 @@ class ServerManager {
 
     // Symlink shared assets (Content/Packs/HytaleAssets/mods) to the instance directory
     try {
-        const potentialAssets = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs', 'Libraries'];
         const parentDir = path.dirname(coreServerDir);
-        
         const searchDirs = [coreServerDir, parentDir];
-        const toLink: Set<string> = new Set(potentialAssets);
+        
+        // Let's find exactly where HytaleAssets is by looking for its manifest
+        let hytaleAssetsSrc: string | null = null;
+        const findManifest = async (dir: string, depth = 0): Promise<string | null> => {
+            if (depth > 2) return null;
+            const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    if (entry.name === 'HytaleAssets' || entry.name === 'Content' || entry.name === 'Packs' || entry.name === 'mods') {
+                        return fullPath;
+                    }
+                    const found = await findManifest(fullPath, depth + 1);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const potentialAssets = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs', 'Libraries'];
+        const toLink: Set<string> = new Set();
 
         for (const dir of searchDirs) {
             if (existsSync(dir)) {
                 const entries = await fs.readdir(dir, { withFileTypes: true });
-                entries.filter(e => e.isDirectory()).forEach(e => toLink.add(e.name));
+                entries.filter(e => e.isDirectory()).forEach(e => {
+                    if (!['instances', 'Server', 'test'].includes(e.name)) {
+                        toLink.add(e.name);
+                    }
+                });
             }
         }
 
         for (const folder of Array.from(toLink)) {
-            // Find WHERE the source folder actually is (check specific then parent)
             let src = path.join(coreServerDir, folder);
-            if (!existsSync(src)) {
-                src = path.join(parentDir, folder);
+            if (!existsSync(src)) src = path.join(parentDir, folder);
+            
+            // If still not found, try a deep search for HytaleAssets specifically
+            if (folder === 'HytaleAssets' && !existsSync(src)) {
+                src = await findManifest(this.coreDir) || src;
             }
 
             const dest = path.join(instanceDir, folder);
-            
-            if (folder === 'instances' || folder === 'test' || folder === 'Server') continue;
-
-            if (existsSync(src)) {
-                if (!existsSync(dest)) {
-                    await fs.symlink(src, dest, 'dir');
-                    this.addLog(id, `[MANAGER] Linked shared folder: ${folder} (found in ${path.basename(path.dirname(src))})\n`);
-                }
+            if (existsSync(src) && !existsSync(dest)) {
+                await fs.symlink(src, dest, 'dir');
+                this.addLog(id, `[MANAGER] Linked ${folder} from ${path.dirname(src)}\n`);
             }
         }
     } catch (e: any) {
