@@ -1,18 +1,19 @@
-FROM node:22-alpine
- 
-# Set memory limit for Node processes (helps prevent segfaults on resource-constrained hosts)
+FROM node:22-bookworm-slim
+
+# Set memory limit for Node processes
 ENV NODE_OPTIONS="--max-old-space-size=2048"
- 
-# Install Java 21 and build tools
-RUN apk add --no-cache \
-    openjdk21-jre \
+
+# Install Java 21 and build tools (Debian syntax)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-21-jre-headless \
     wget \
     unzip \
     curl \
-    libc6-compat
- 
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set environment variables for Java
-ENV JAVA_HOME=/usr/lib/jvm/default-jvm
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Download and install Hytale Downloader CLI with retries and integrity check
