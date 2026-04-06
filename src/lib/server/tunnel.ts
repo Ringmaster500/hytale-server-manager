@@ -48,7 +48,7 @@ export class TunnelManager {
       // Add new rule at the beginning (before the catch-all)
       data.ingress.unshift({
         hostname: fullDomain,
-        service: `http://localhost:${targetPort}`
+        service: `udp://localhost:${targetPort}`
       });
 
       // Ensure the catch-all (404) is always at the end
