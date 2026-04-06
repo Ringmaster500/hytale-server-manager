@@ -57,6 +57,7 @@ class ServerManager {
 
   async saveCloudflareConfig(config: any) {
     this.config.cloudflare = config;
+    await tunnelManager.setConfig(config);
     await this.saveConfig();
   }
 

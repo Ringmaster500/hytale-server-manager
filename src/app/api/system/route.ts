@@ -18,7 +18,8 @@ export async function POST(request: Request) {
    }
 
    if (body.action === 'save_cloudflare') {
-     await serverManager.saveCloudflareConfig(body.config);
+     const { action, ...config } = body;
+     await serverManager.saveCloudflareConfig(config);
      return NextResponse.json({ success: true });
    }
 
