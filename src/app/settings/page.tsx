@@ -38,6 +38,17 @@ export default function Settings() {
     setLoading(false);
   };
 
+  const rescanFilesystem = async () => {
+    setLoading(true);
+    const res = await fetch('/api/system', { 
+        method: 'POST',
+        body: JSON.stringify({ action: 'check' })
+    });
+    const data = await res.json();
+    setStatus(data);
+    setLoading(false);
+  };
+
   if (!status) return <div className="container">Loading...</div>;
 
   return (
@@ -68,30 +79,42 @@ export default function Settings() {
               <span>{(status.jarSize / 1024 / 1024).toFixed(2)} MB</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ opacity: 0.6 }}>Onboarding Done</span>
-              <span>{status.onboarded ? 'Yes' : 'No'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ opacity: 0.6 }}>Instances Count</span>
-              <span>{status.instancesCount}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ opacity: 0.6 }}>Mock Mode</span>
-              <span style={{ color: status.mockMode ? 'orange' : 'inherit' }}>{status.mockMode ? 'ENABLED' : 'DISABLED'}</span>
+              <span style={{ opacity: 0.6 }}>Node Version</span>
+              <span>{status.nodeVersion}</span>
             </div>
           </div>
 
           <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', flexDirection: 'column' }}>
-            <button className="btn btn-primary" style={{ justifyContent: 'center' }} onClick={retriggerDownload} disabled={loading}>
-              Force Re-trigger Download
+            <button className="btn btn-primary" style={{ justifyContent: 'center' }} onClick={rescanFilesystem} disabled={loading}>
+              Re-scan Filesystem
             </button>
-            <button className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.4)', justifyContent: 'center' }} onClick={resetSystem} disabled={loading}>
+            <button className="btn btn-secondary" style={{ justifyContent: 'center', opacity: 0.8 }} onClick={retriggerDownload} disabled={loading}>
+              Force Re-download
+            </button>
+            <button className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.2)', justifyContent: 'center' }} onClick={resetSystem} disabled={loading}>
               Reset Configuration
             </button>
           </div>
         </div>
 
-        <div className="card glass" style={{ gridColumn: 'span 1' }}>
+        <div className="card glass">
+          <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem' }}>Core Files Explorer</h2>
+          <div style={{ fontSize: '0.8rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '1rem', height: '200px', overflowY: 'auto' }}>
+            {status.coreFiles && status.coreFiles.length > 0 ? (
+                status.coreFiles.map((file: any) => (
+                    <div key={file.name} style={{ padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{file.isDirectory ? '📁' : '📄'} {file.name}</span>
+                        <span style={{ opacity: 0.4 }}>{file.isDirectory ? 'DIR' : 'FILE'}</span>
+                    </div>
+                ))
+            ) : (
+                <p style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No files found in data/core</p>
+            )}
+          </div>
+          <p style={{ fontSize: '0.7rem', opacity: 0.5, marginTop: '0.5rem' }}>Path: ./data/core/</p>
+        </div>
+
+        <div className="card glass" style={{ gridColumn: '1 / -1' }}>
           <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem' }}>System Logs</h2>
           <div className="console" style={{ height: '300px', fontSize: '0.75rem' }}>
             {logs.map((log, i) => <div key={i}>{log}</div>)}

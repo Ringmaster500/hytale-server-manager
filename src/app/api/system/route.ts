@@ -10,8 +10,14 @@ export async function DELETE() {
   return NextResponse.json({ success: true });
 }
 
-export async function POST() {
-   // Re-trigger download
+export async function POST(request: Request) {
+   const { action } = await request.json().catch(() => ({}));
+   
+   if (action === 'check') {
+     return NextResponse.json(await serverManager.refreshStatus());
+   }
+
+   // Default: Re-trigger download
    serverManager.checkCoreFiles();
    return NextResponse.json({ success: true });
 }

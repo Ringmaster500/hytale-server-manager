@@ -72,7 +72,30 @@ class ServerManager {
       instancesCount: this.instancesMap.size,
       mockMode: process.env.MOCK_SERVER === 'true',
       nodeVersion: process.version,
+      coreFiles: await this.listFiles('core').catch(() => []),
     };
+  }
+
+  async listFiles(subPath: string = '') {
+    const targetDir = path.join(this.dataDir, subPath);
+    if (!targetDir.startsWith(this.dataDir)) throw new Error("Access denied");
+    
+    try {
+      if (!existsSync(targetDir)) return [];
+      const entries = await fs.readdir(targetDir, { withFileTypes: true });
+      return entries.map(e => ({
+        name: e.name,
+        isDirectory: e.isDirectory(),
+        size: 0,
+      }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async refreshStatus() {
+    await this.loadInstances();
+    return this.getSystemInfo();
   }
 
   private async loadInstances() {
