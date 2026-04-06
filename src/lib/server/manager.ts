@@ -390,7 +390,10 @@ class ServerManager {
 
     const proc = spawn('java', [
         `-Xmx${inst.maxRam}M`, 
-        '-XX:+UseParallelGC',
+        '-XX:+UseZGC',
+        '-XX:+ZGenerational',
+        '-XX:MaxDirectMemorySize=1G',
+        '-XX:-UseCompressedOops',
         '-Dsentry.enabled=false',
         '-jar', finalJar,
         '--assets', 'Assets.zip',
