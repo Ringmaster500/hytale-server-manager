@@ -268,18 +268,29 @@ class ServerManager {
     const instanceDir = path.join(this.instancesDir, id);
     const coreServerDir = path.dirname(finalJar);
 
-    // Symlink shared assets (Content/Packs) to the instance directory
+    // Symlink shared assets (Content/Packs/HytaleAssets/mods) to the instance directory
     try {
-        const assetFolders = ['Content', 'Packs', 'Lib', 'Native'];
-        for (const folder of assetFolders) {
+        const potentialAssets = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs'];
+        
+        // Also look for any directory in core that isn't the instance itself
+        const coreEntries = await fs.readdir(coreServerDir, { withFileTypes: true });
+        const coreFolders = coreEntries.filter(e => e.isDirectory()).map(e => e.name);
+        
+        const toLink = Array.from(new Set([...potentialAssets, ...coreFolders]));
+
+        for (const folder of toLink) {
             const src = path.join(coreServerDir, folder);
             const dest = path.join(instanceDir, folder);
             
+            // Skip linking instances to themselves or existing instance-specific data
+            if (folder === 'instances' || folder === 'data' && existsSync(path.join(instanceDir, 'server.properties'))) {
+                continue;
+            }
+
             if (existsSync(src)) {
-                // If destination exists but is not a symlink, we might want to back it up or skip
                 if (!existsSync(dest)) {
                     await fs.symlink(src, dest, 'dir');
-                    this.addLog(id, `[MANAGER] Linked shared asset folder: ${folder}\n`);
+                    this.addLog(id, `[MANAGER] Linked shared folder: ${folder}\n`);
                 }
             }
         }
