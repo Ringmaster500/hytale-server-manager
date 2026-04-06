@@ -8,6 +8,7 @@ interface ServerInstance {
   name: string;
   port: number;
   status: 'online' | 'offline' | 'starting' | 'error';
+  subdomain?: string;
 }
 
 export default function Home() {
@@ -97,6 +98,12 @@ export default function Home() {
                   <label style={{ display: 'block', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Platform</label>
                   <p style={{ fontWeight: '600' }}>Java 21</p>
                 </div>
+                {inst.subdomain && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Public Address</label>
+                    <p style={{ fontWeight: '600', color: 'var(--accent)' }}>{inst.subdomain}</p>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

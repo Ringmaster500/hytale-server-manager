@@ -10,6 +10,7 @@ export interface ServerInstance {
   port: number;
   status: 'online' | 'offline' | 'starting' | 'error';
   logs: string[];
+  subdomain?: string;
   cpuUsage?: number;
   ramUsage?: number;
 }
@@ -59,7 +60,8 @@ class ServerManager {
     await this.saveConfig();
   }
 
-  private async saveConfig() {
+  async saveConfig(config?: any) {
+    if (config) this.config = { ...this.config, ...config };
     await fs.writeFile(this.configFile, JSON.stringify(this.config, null, 2));
   }
 
@@ -300,6 +302,18 @@ class ServerManager {
 
     inst.status = 'starting';
     inst.logs.push(`[MANAGER] Launching Hytale Instance (Official Assets Mode)...\n`);
+
+    // Cloudflare Subdomain Provisioning
+    if (this.config.cloudflare) {
+        try {
+            this.addLog(id, `[TUNNEL] Provisioning subdomain: ${id}.${this.config.cloudflare.domain}...\n`);
+            const url = await tunnelManager.createSubdomain(id, inst.port);
+            inst.subdomain = url;
+            this.addLog(id, `[TUNNEL] Successfully mapped ${url} to port ${inst.port}\n`);
+        } catch (e: any) {
+            this.addLog(id, `[TUNNEL] Error: Failed to provision subdomain: ${e.message}\n`);
+        }
+    }
 
     const proc = spawn('java', [
         '-Xmx1024M', 
