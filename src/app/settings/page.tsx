@@ -96,63 +96,90 @@ export default function Settings() {
         <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {/* Cloudflare Section */}
           <section className="card glass">
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem' }}>Cloudflare DNS</h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
-                Direct A-Record Management
-              </p>
+            <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.4rem' }}>Cloudflare DNS</h2>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                   <div className={`status-pill ${status.config?.cloudflare?.apiToken ? 'online' : ''}`} style={{ fontSize: '0.6rem' }}>
+                      {status.config?.cloudflare?.apiToken ? 'API Linked' : 'No Token'}
+                   </div>
+                   <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>{cloudflareDomain || 'No primary domain set'}</div>
+                </div>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Domain</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="input-group">
+                <label className="input-label">Master Domain</label>
                 <input 
                   className="console-input" 
                   value={cloudflareDomain}
                   onChange={(e) => setCloudflareDomain(e.target.value)}
-                  placeholder="noxu-overseerr.org"
+                  placeholder="e.g. noxu-overseerr.org"
+                  style={{ borderLeft: status.config?.cloudflare?.domain === cloudflareDomain ? '2px solid transparent' : '2px solid var(--accent)' }}
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>API Token</label>
+              <div className="input-group">
+                <label className="input-label">Global API Token</label>
                 <input 
                   className="console-input" 
                   type="password"
                   value={cloudflareToken}
                   onChange={(e) => setCloudflareToken(e.target.value)}
-                  placeholder="cfut_..."
+                  placeholder="Encoded Secret"
+                  style={{ borderLeft: (status.config?.cloudflare?.apiToken && cloudflareToken === status.config.cloudflare.apiToken) ? '2px solid transparent' : '2px solid var(--accent)' }}
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Zone ID</label>
-                <input 
-                  className="console-input" 
-                  value={cloudflareZoneId}
-                  onChange={(e) => setCloudflareZoneId(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Public Server IP</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                 <div className="input-group">
+                    <label className="input-label">Zone ID</label>
                     <input 
-                    className="console-input" 
-                    value={publicIp}
-                    onChange={(e) => setPublicIp(e.target.value)}
-                    placeholder="Auto-detected if blank"
+                      className="console-input" 
+                      value={cloudflareZoneId}
+                      onChange={(e) => setCloudflareZoneId(e.target.value)}
+                      style={{ borderLeft: status.config?.cloudflare?.zoneId === cloudflareZoneId ? '2px solid transparent' : '2px solid var(--accent)' }}
                     />
-                    <button className="btn btn-secondary" style={{ padding: '0 0.5rem', fontSize: '0.7rem' }} onClick={detectIp}>Detect</button>
-                </div>
+                 </div>
+                 <div className="input-group">
+                    <label className="input-label">Public IP Override</label>
+                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                       <input 
+                         className="console-input" 
+                         value={publicIp}
+                         onChange={(e) => setPublicIp(e.target.value)}
+                         placeholder="Auto"
+                         style={{ borderLeft: status.config?.cloudflare?.publicIp === publicIp ? '2px solid transparent' : '2px solid var(--accent)' }}
+                       />
+                       <button className="icon-btn" onClick={detectIp} title="Detect IP">
+                          <span style={{ fontSize: '0.8rem' }}>&bull;</span>
+                       </button>
+                    </div>
+                 </div>
+              </div>
+
+              <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                 <p style={{ fontSize: '0.65rem', opacity: 0.4, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Current Config State</p>
+                 <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                       <span style={{ opacity: 0.6 }}>Target:</span>
+                       <span>*.{status.config?.cloudflare?.domain || 'None'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                       <span style={{ opacity: 0.6 }}>A-Record IP:</span>
+                       <span style={{ color: 'var(--accent)' }}>{status.config?.cloudflare?.publicIp || 'Not Set'}</span>
+                    </div>
+                 </div>
               </div>
 
               <button 
                 className="btn btn-primary" 
                 onClick={saveCloudflare}
                 disabled={loading}
+                style={{ width: '100%', marginTop: '0.5rem' }}
               >
-                {loading ? 'Saving...' : 'Update Settings'}
+                {loading ? 'Committing...' : 'Apply Live Configuration'}
               </button>
             </div>
           </section>
@@ -187,13 +214,61 @@ export default function Settings() {
             </div>
           </section>
 
-          {/* System Info */}
-          <section className="card glass" style={{ opacity: 0.8 }}>
-             <h3 style={{ fontSize: '0.8rem', opacity: 0.6, marginBottom: '1rem', textTransform: 'uppercase' }}>Core Stability</h3>
-             <div style={{ fontSize: '0.9rem' }}>
-                <p>Node: {status.nodeVersion}</p>
-                <p>Status: <span style={{ color: 'var(--success)' }}>{status.jarStatus}</span></p>
-                <p>Assets: Verified</p>
+          {/* Hytale Core Maintenance */}
+          <section className="card glass">
+             <div style={{ marginBottom: '1.25rem' }}>
+               <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.4rem' }}>Hytale Core Maintenance</h2>
+               <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>
+                 Manage the shared server files (JAR/Assets).
+               </p>
+             </div>
+             
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                   <span style={{ opacity: 0.6 }}>Server JAR:</span>
+                   <span style={{ color: status.jarExists ? 'var(--success)' : 'var(--danger)' }}>
+                      {status.jarExists ? 'Ready' : 'Missing'}
+                   </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                   <span style={{ opacity: 0.6 }}>Assets.zip:</span>
+                   <span style={{ color: status.coreFiles?.some((f: any) => f.name === 'Assets.zip') ? 'var(--success)' : 'var(--danger)' }}>
+                      {status.coreFiles?.some((f: any) => f.name === 'Assets.zip') ? 'Verified' : 'Missing'}
+                   </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                   <span style={{ opacity: 0.6 }}>Downloader:</span>
+                   <span style={{ color: status.isDownloading ? 'var(--accent)' : 'inherit' }}>
+                      {status.isDownloading ? 'Active...' : 'Idle'}
+                   </span>
+                </div>
+             </div>
+
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ width: '100%', fontSize: '0.8rem' }}
+                  onClick={async () => {
+                     if (confirm("Force verify core files? This will trigger a re-download if any keys are missing.")) {
+                        await fetch('/api/system/maintenance', { method: 'POST', body: JSON.stringify({ action: 'verify-core' }) });
+                        fetchStatus();
+                     }
+                  }}
+                >
+                   Verify Integrity
+                </button>
+                <button 
+                  className="btn btn-danger" 
+                  style={{ width: '100%', fontSize: '0.8rem', opacity: 0.8 }}
+                  onClick={async () => {
+                     if (confirm("NUCLEAR RESET: This will delete HytaleServer.jar and Assets.zip and download them fresh. YOUR WORLDS ARE SAFE. Proceed?")) {
+                        await fetch('/api/system/maintenance', { method: 'POST', body: JSON.stringify({ action: 'reset-core' }) });
+                        fetchStatus();
+                     }
+                  }}
+                >
+                   Full Reset Core Files
+                </button>
              </div>
           </section>
         </aside>

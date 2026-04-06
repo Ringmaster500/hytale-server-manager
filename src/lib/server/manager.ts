@@ -72,6 +72,15 @@ class ServerManager {
     this.addGlobalLog("[MANAGER] Configuration reset.");
   }
 
+  async resetCoreFiles() {
+    this.addGlobalLog("[MANAGER] Wiping core files for full reset...");
+    if (existsSync(this.coreDir)) {
+        await fs.rm(this.coreDir, { recursive: true, force: true });
+    }
+    this.ensureDirs();
+    await this.checkCoreFiles(true);
+  }
+
   private async getJarPath(): Promise<string | null> {
     const options = [
       path.join(this.coreDir, 'hytaleserver.jar'),
@@ -83,7 +92,7 @@ class ServerManager {
     for (const p of options) {
       if (existsSync(p)) {
         const stats = await fs.stat(p);
-        if (stats.size > 1024) return p;
+        if (stats.size > 1024 * 1024) return p; // Must be at least 1MB to be a real JAR
       }
     }
     return null;
@@ -199,18 +208,21 @@ class ServerManager {
     console.log(`[SYS] ${message}`);
   }
 
-  async checkCoreFiles() {
+  async checkCoreFiles(force: boolean = false) {
     if (this.isDownloading) return;
 
     const currentJar = await this.getJarPath();
     const assetsZip = path.join(this.coreDir, 'Assets.zip');
     
     // Integrity check: Both JAR and Assets.zip must exist for Official Mode
-    if (currentJar && existsSync(assetsZip)) return;
+    if (!force && currentJar && existsSync(assetsZip)) {
+        this.addGlobalLog("[MANAGER] Core files verified and healthy.");
+        return;
+    }
 
     this.isDownloading = true;
     const downloadTarget = path.join(this.coreDir, 'hytaleserver.jar');
-    this.addGlobalLog(`[MANAGER] Launching: hytale-downloader -download-path ${downloadTarget}`);
+    this.addGlobalLog(`[MANAGER] ${force ? 'FORCING RE-DOWNLOAD' : 'Core files missing'}. Launching: hytale-downloader...`);
     
     try {
       const downloader = spawn('hytale-downloader', ['-download-path', downloadTarget], {
@@ -230,6 +242,7 @@ class ServerManager {
                 const unzip = spawn('unzip', ['-o', zipPath, '-d', this.coreDir], { cwd: this.coreDir });
                 unzip.on('close', async () => {
                     await fs.unlink(zipPath).catch(() => {});
+                    this.addGlobalLog("[MANAGER] Extraction complete.");
                     resolve();
                 });
             } else {
@@ -237,9 +250,7 @@ class ServerManager {
             }
           } else {
             // Log help on failure
-            this.addGlobalLog(`[MANAGER] Downloader failed (code ${code}). Pulling --help...`);
-            const help = spawnSync('hytale-downloader', ['--help']);
-            this.addGlobalLog(help.stdout.toString() + help.stderr.toString());
+            this.addGlobalLog(`[MANAGER] Downloader failed (code ${code}).`);
             reject(new Error(`Exit code ${code}`));
           }
         });
