@@ -7,11 +7,20 @@ export default function Settings() {
   const [status, setStatus] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cfConfig, setCfConfig] = useState({
+      accountId: '',
+      tunnelId: '',
+      apiToken: '',
+      domain: ''
+  });
 
   const fetchData = async () => {
     const sRes = await fetch('/api/system');
     const sData = await sRes.json();
     setStatus(sData);
+    if (sData.config?.cloudflare) {
+        setCfConfig(prev => ({ ...prev, ...sData.config.cloudflare }));
+    }
 
     const lRes = await fetch('/api/logs');
     const lData = await lRes.json();
@@ -47,6 +56,17 @@ export default function Settings() {
     const data = await res.json();
     setStatus(data);
     setLoading(false);
+  };
+
+  const saveCfConfig = async () => {
+      setLoading(true);
+      await fetch('/api/system', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save_cloudflare', config: cfConfig })
+      });
+      setLoading(false);
+      alert("Cloudflare configuration saved!");
   };
 
   if (!status) return <div className="container">Loading...</div>;
@@ -94,6 +114,71 @@ export default function Settings() {
             <button className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.2)', justifyContent: 'center' }} onClick={resetSystem} disabled={loading}>
               Reset Configuration
             </button>
+
+            {/* Cloudflare Network Configuration */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 backdrop-blur-sm animate-in slide-in-from-bottom duration-500 delay-200">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-orange-500/20 text-orange-400 rounded-lg">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold">Cloudflare Network</h2>
+                        <p className="text-sm text-slate-400">Manage Zero-Trust Tunnels & Subdomains</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Account ID</label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500/50 transition-colors"
+                            value={cfConfig.accountId}
+                            onChange={(e) => setCfConfig({ ...cfConfig, accountId: e.target.value })}
+                            placeholder="From your Cloudflare Dashboard"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tunnel ID</label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500/50 transition-colors"
+                            value={cfConfig.tunnelId}
+                            onChange={(e) => setCfConfig({ ...cfConfig, tunnelId: e.target.value })}
+                            placeholder="Your Argo Tunnel ID"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">API Token (Zone/Tunnel access)</label>
+                        <input 
+                            type="password" 
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500/50 transition-colors"
+                            value={cfConfig.apiToken}
+                            onChange={(e) => setCfConfig({ ...cfConfig, apiToken: e.target.value })}
+                            placeholder="Cloudflare API Token"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Primary Domain</label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500/50 transition-colors"
+                            value={cfConfig.domain}
+                            onChange={(e) => setCfConfig({ ...cfConfig, domain: e.target.value })}
+                            placeholder="noxu-overseerr.org"
+                        />
+                    </div>
+                </div>
+                
+                <button 
+                    onClick={saveCfConfig}
+                    className="mt-6 w-full py-3 bg-orange-600 hover:bg-orange-500 active:scale-95 transition-all font-bold rounded-lg shadow-lg shadow-orange-900/20"
+                >
+                    Save Cloudflare Configuration
+                </button>
+            </div>
           </div>
         </div>
 

@@ -1,7 +1,8 @@
 import { spawn, ChildProcess, spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
+import { tunnelManager } from './tunnel';
 
 export interface ServerInstance {
   id: string;
@@ -18,6 +19,8 @@ class ServerManager {
   private dataDir: string;
   private coreDir: string;
   private instancesDir: string;
+  private configFile: string;
+  private config: any = {};
   private globalLogs: string[] = [];
   private isDownloading = false;
 
@@ -25,18 +28,39 @@ class ServerManager {
     this.dataDir = path.join(process.cwd(), 'data');
     this.coreDir = path.join(this.dataDir, 'core');
     this.instancesDir = path.join(this.dataDir, 'instances');
+    this.configFile = path.join(this.dataDir, 'config.json');
     this.ensureDirs();
+    this.loadConfigSync();
     this.loadInstances();
     this.addGlobalLog("[MANAGER] Hytale Server Manager initialized.");
     this.addGlobalLog(`[MANAGER] Working Directory: ${process.cwd()}`);
   }
 
-  isOnboarded(): boolean {
-    return existsSync(path.join(this.dataDir, 'config.json'));
+  private loadConfigSync() {
+    if (existsSync(this.configFile)) {
+      try {
+        const data = readFileSync(this.configFile, 'utf-8');
+        this.config = JSON.parse(data);
+        if (this.config.cloudflare) {
+          tunnelManager.setConfig(this.config.cloudflare);
+        }
+      } catch (e) {
+        this.config = {};
+      }
+    }
   }
 
-  async saveConfig(config: any) {
-    await fs.writeFile(path.join(this.dataDir, 'config.json'), JSON.stringify(config, null, 2));
+  isOnboarded(): boolean {
+    return existsSync(this.configFile);
+  }
+
+  async saveCloudflareConfig(config: any) {
+    this.config.cloudflare = config;
+    await this.saveConfig();
+  }
+
+  private async saveConfig() {
+    await fs.writeFile(this.configFile, JSON.stringify(this.config, null, 2));
   }
 
   async resetConfig() {
@@ -311,9 +335,26 @@ class ServerManager {
   }
 
   async deleteInstance(id: string) {
+    const instancePath = path.join(this.instancesDir, id);
     const inst = this.instancesMap.get(id);
-    if (!inst || inst.status !== 'offline') throw new Error("Busy or missing");
-    await fs.rm(path.join(this.instancesDir, id), { recursive: true, force: true });
+    
+    if (inst?.process) {
+      await this.stopServer(id);
+    }
+
+    // Network Cleanup
+    if (this.config.cloudflare) {
+        try {
+            await tunnelManager.removeSubdomain(id);
+        } catch (e) {
+            this.addGlobalLog("[MANAGER] Cloudflare cleanup failed (ignoring)");
+        }
+    }
+
+    if (existsSync(instancePath)) {
+      await fs.rm(instancePath, { recursive: true, force: true });
+      this.addGlobalLog(`[MANAGER] Instance deleted: ${id}`);
+    }
     this.instancesMap.delete(id);
   }
 

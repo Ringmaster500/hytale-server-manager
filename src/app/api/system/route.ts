@@ -11,10 +11,15 @@ export async function DELETE() {
 }
 
 export async function POST(request: Request) {
-   const { action } = await request.json().catch(() => ({}));
+   const body = await request.json().catch(() => ({}));
    
-   if (action === 'check') {
+   if (body.action === 'check') {
      return NextResponse.json(await serverManager.refreshStatus());
+   }
+
+   if (body.action === 'save_cloudflare') {
+     await serverManager.saveCloudflareConfig(body.config);
+     return NextResponse.json({ success: true });
    }
 
    // Default: Re-trigger download
