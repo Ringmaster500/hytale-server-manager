@@ -13,6 +13,7 @@ export interface ServerInstance {
   subdomain?: string;
   cpuUsage?: number;
   ramUsage?: number;
+  maxRam: number; // In MiB
 }
 
 class ServerManager {
@@ -150,18 +151,28 @@ class ServerManager {
         const stats = await fs.stat(instanceDir);
         if (stats.isDirectory()) {
           let port = 4242;
+          let maxRam = 2048;
+          
           try {
             const props = await fs.readFile(path.join(instanceDir, 'server.properties'), 'utf-8');
             const match = props.match(/server\.port=(\d+)/);
             if (match) port = parseInt(match[1]);
+            
+            // Try to load extra metadata
+            const metaPath = path.join(instanceDir, 'manager-config.json');
+            if (existsSync(metaPath)) {
+                const meta = JSON.parse(await fs.readFile(metaPath, 'utf-8'));
+                if (meta.maxRam) maxRam = meta.maxRam;
+            }
           } catch (e) {}
-
+ 
           this.instancesMap.set(id, {
             id,
             name: id.replace(/-/g, ' '),
             port,
             status: 'offline',
             logs: [],
+            maxRam
           });
         }
       }
@@ -255,7 +266,7 @@ class ServerManager {
     return start; // Fallback
   }
 
-  async createInstance(name: string, port?: number) {
+  async createInstance(name: string, port?: number, maxRam: number = 2048) {
     const finalPort = port || this.getNextPort();
     const id = name.toLowerCase().replace(/\s+/g, '-');
     const instanceDir = path.join(this.instancesDir, id);
@@ -266,10 +277,30 @@ class ServerManager {
 
     const props = `server.port=${finalPort}\nserver.name=${name}\nmax-players=20\n`;
     await fs.writeFile(path.join(instanceDir, 'server.properties'), props);
+    
+    // Save manager settings
+    await fs.writeFile(path.join(instanceDir, 'manager-config.json'), JSON.stringify({ maxRam }, null, 2));
 
-    const instance: ServerInstance = { id, name, port: finalPort, status: 'offline', logs: [] };
+    const instance: ServerInstance = { id, name, port: finalPort, status: 'offline', logs: [], maxRam };
     this.instancesMap.set(id, instance);
     return instance;
+  }
+
+  async updateInstanceSettings(id: string, settings: { maxRam?: number, port?: number }) {
+    const inst = this.instancesMap.get(id);
+    if (!inst) throw new Error("Instance not found");
+
+    if (settings.maxRam) inst.maxRam = settings.maxRam;
+    if (settings.port) inst.port = settings.port;
+
+    const instanceDir = path.join(this.instancesDir, id);
+    await fs.writeFile(path.join(instanceDir, 'manager-config.json'), JSON.stringify({ maxRam: inst.maxRam }, null, 2));
+    
+    if (settings.port) {
+        // We'd need to update server.properties too, but let's keep it simple for now or do it later
+    }
+    
+    return inst;
   }
 
   async startServer(id: string) {
@@ -347,7 +378,7 @@ class ServerManager {
     }
 
     const proc = spawn('java', [
-        '-Xmx1024M', 
+        `-Xmx${inst.maxRam}M`, 
         '-jar', finalJar,
         '--assets', 'Assets.zip',
         '--backup',

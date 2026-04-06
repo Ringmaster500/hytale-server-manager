@@ -10,15 +10,15 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
+  const { name, port, maxRam } = await req.json();
+  if (!name) return Response.json({ error: 'Name is required' }, { status: 400 });
+
   try {
-    const { name, port } = await req.json();
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-    }
-    const instance = await serverManager.createInstance(name, port);
-    return NextResponse.json(instance);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const manager = serverManager;
+    const server = await manager.createInstance(name, port ? parseInt(port) : undefined, maxRam ? parseInt(maxRam) : undefined);
+    return Response.json(server);
+  } catch (e: any) {
+    return Response.json({ error: e.message }, { status: 500 });
   }
 }
