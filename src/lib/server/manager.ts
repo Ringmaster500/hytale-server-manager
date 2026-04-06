@@ -41,10 +41,9 @@ class ServerManager {
 
   async resetConfig() {
     const configPath = path.join(this.dataDir, 'config.json');
-    const jarPath = path.join(this.coreDir, 'hytaleserver.jar');
     if (existsSync(configPath)) await fs.unlink(configPath);
-    if (existsSync(jarPath)) await fs.unlink(jarPath);
-    this.addGlobalLog("[MANAGER] System configuration reset.");
+    // Be careful with deleting everything - user might have huge assets
+    this.addGlobalLog("[MANAGER] Configuration reset.");
   }
 
   private async getJarPath(): Promise<string | null> {
@@ -66,6 +65,7 @@ class ServerManager {
 
   async getSystemInfo() {
     const currentJar = await this.getJarPath();
+    const assetsZip = path.join(this.coreDir, 'Assets.zip');
     const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
     let jarStatus: 'missing' | 'ready' | 'corrupt' | 'downloading' = 'missing';
     let jarSize = 0;
@@ -76,7 +76,7 @@ class ServerManager {
       const stats = await fs.stat(currentJar);
       jarSize = stats.size;
       jarStatus = 'ready';
-    } else if (existsSync(zipPath)) {
+    } else if (existsSync(zipPath) || existsSync(assetsZip)) {
       jarStatus = 'corrupt'; // Needs unzip or re-pull
     }
 
@@ -122,7 +122,6 @@ class ServerManager {
         const instanceDir = path.join(this.instancesDir, id);
         const stats = await fs.stat(instanceDir);
         if (stats.isDirectory()) {
-          // Mock loading from server.properties if it exists
           let port = 4242;
           try {
             const props = await fs.readFile(path.join(instanceDir, 'server.properties'), 'utf-8');
@@ -165,13 +164,26 @@ class ServerManager {
   // Phase 2: Auto-Setup Logic
   async ensureAssets() {
     const assetsZip = path.join(this.coreDir, 'Assets.zip');
+    const commonDir = path.join(this.coreDir, 'Common');
+    
+    if (existsSync(commonDir) && existsSync(assetsZip)) {
+        await fs.unlink(assetsZip).catch(() => {});
+        this.addGlobalLog("[MANAGER] Assets already present. Cleaned up zip.");
+        return;
+    }
+
     if (!existsSync(assetsZip)) return;
 
-    this.addGlobalLog("[MANAGER] Found Assets.zip. Extracting...");
+    this.addGlobalLog("[MANAGER] Found Assets.zip. Extracting massive asset pack (this may take a minute)...");
     const unzipAssets = spawn('unzip', ['-o', assetsZip, '-d', this.coreDir], { cwd: this.coreDir });
-    await new Promise((res) => unzipAssets.on('close', res));
-    await fs.unlink(assetsZip).catch(() => {});
-    this.addGlobalLog("[MANAGER] Assets extracted successfully.");
+    
+    await new Promise<void>((resolve) => {
+        unzipAssets.on('close', async () => {
+            this.addGlobalLog("[MANAGER] Assets extracted successfully.");
+            await fs.unlink(assetsZip).catch(() => {});
+            resolve();
+        });
+    });
   }
 
   async checkCoreFiles() {
@@ -179,7 +191,7 @@ class ServerManager {
     if (this.isDownloading) return;
 
     const currentJar = await this.getJarPath();
-    if (currentJar) return; // JAR is already there
+    if (currentJar) return;
 
     if (process.env.MOCK_SERVER === 'true') {
         this.addGlobalLog("[MANAGER] MOCK_SERVER is enabled. Skipping binaries pull.");
@@ -204,9 +216,7 @@ class ServerManager {
         downloader.on('close', async (code) => {
           if (code === 0) {
             this.addGlobalLog("[MANAGER] Download complete. Checking for zip extraction...");
-            
             const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
-            // The downloader often saves as .jar.zip
             if (existsSync(zipPath)) {
                 this.addGlobalLog("[MANAGER] Extracting binaries...");
                 const unzip = spawn('unzip', ['-o', zipPath, '-d', this.coreDir], { cwd: this.coreDir });
@@ -238,7 +248,6 @@ class ServerManager {
     }
   }
 
-  // Phase 2: Instance Creation
   async createInstance(name: string, port: number) {
     const id = name.toLowerCase().replace(/\s+/g, '-');
     const instanceDir = path.join(this.instancesDir, id);
@@ -250,7 +259,6 @@ class ServerManager {
     await fs.mkdir(path.join(instanceDir, 'mods'), { recursive: true });
     await fs.mkdir(path.join(instanceDir, 'config'), { recursive: true });
 
-    // Generate default server.properties
     const props = `server.port=${port}\nserver.name=${name}\nmax-players=20\nversion=1.0.0\n`;
     await fs.writeFile(path.join(instanceDir, 'server.properties'), props);
 
@@ -266,19 +274,16 @@ class ServerManager {
     return instance;
   }
 
-  // Phase 2: Process Control
   async startServer(id: string) {
     const inst = this.instancesMap.get(id);
     if (!inst) throw new Error(`Instance ${id} not found`);
     if (inst.status === 'online' || inst.status === 'starting') return inst;
 
-    // ALWAYS ensure assets are extracted first, regardless of JAR status
     await this.ensureAssets();
 
-    // Check if CORE files exist
-    const finalJar = await this.getJarPath();
-    if (!finalJar) {
-        await this.checkCoreFiles();
+    const currentJar = await this.getJarPath();
+    if (!currentJar) {
+      await this.checkCoreFiles();
     }
     
     const doubleCheckJar = await this.getJarPath();
@@ -287,22 +292,31 @@ class ServerManager {
     const instanceDir = path.join(this.instancesDir, id);
     const coreServerDir = path.dirname(doubleCheckJar);
 
-    // Symlink shared assets (Content/Packs/HytaleAssets/mods) to the instance directory
+    // Deep symlink Logic
     try {
+        const potentialFolders = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs', 'Libraries', 'Common'];
         const parentDir = path.dirname(coreServerDir);
-        const searchDirs = [coreServerDir, parentDir];
-        
-        // Let's find exactly where HytaleAssets is by looking for its manifest
-        let hytaleAssetsSrc: string | null = null;
+        const searchDirs = [coreServerDir, parentDir, this.coreDir];
+        const foldersToLink: Set<string> = new Set(potentialFolders);
+
+        for (const dir of searchDirs) {
+            if (existsSync(dir)) {
+                const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+                entries.filter(e => e.isDirectory()).forEach(e => {
+                    if (!['instances', 'Server', 'test', 'data'].includes(e.name)) {
+                        foldersToLink.add(e.name);
+                    }
+                });
+            }
+        }
+
         const findManifest = async (dir: string, depth = 0): Promise<string | null> => {
             if (depth > 2) return null;
             const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
             for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
                 if (entry.isDirectory()) {
-                    if (entry.name === 'HytaleAssets' || entry.name === 'Content' || entry.name === 'Packs' || entry.name === 'mods') {
-                        return fullPath;
-                    }
+                    if (entry.name === 'HytaleAssets' || entry.name === 'Content' || entry.name === 'Packs' || entry.name === 'mods') return fullPath;
                     const found = await findManifest(fullPath, depth + 1);
                     if (found) return found;
                 }
@@ -310,61 +324,31 @@ class ServerManager {
             return null;
         };
 
-        const potentialAssets = ['Content', 'Packs', 'Lib', 'Native', 'HytaleAssets', 'mods', 'data', 'scripts', 'configs', 'Libraries'];
-        const toLink: Set<string> = new Set();
-
-        for (const dir of searchDirs) {
-            if (existsSync(dir)) {
-                const entries = await fs.readdir(dir, { withFileTypes: true });
-                entries.filter(e => e.isDirectory()).forEach(e => {
-                    if (!['instances', 'Server', 'test'].includes(e.name)) {
-                        toLink.add(e.name);
-                    }
-                });
-            }
-        }
-
-        for (const folder of Array.from(toLink)) {
+        for (const folder of Array.from(foldersToLink)) {
             let src = path.join(coreServerDir, folder);
             if (!existsSync(src)) src = path.join(parentDir, folder);
+            if (!existsSync(src)) src = path.join(this.coreDir, folder);
             
-            // If still not found, try a deep search for HytaleAssets specifically
             if (folder === 'HytaleAssets' && !existsSync(src)) {
                 src = await findManifest(this.coreDir) || src;
             }
 
-            const dest = path.join(instanceDir, folder);
-            if (existsSync(src) && !existsSync(dest)) {
-                await fs.symlink(src, dest, 'dir');
-                this.addLog(id, `[MANAGER] Linked ${folder} from ${path.dirname(src)}\n`);
+            if (existsSync(src)) {
+                const dest = path.join(instanceDir, folder);
+                if (!existsSync(dest)) {
+                    await fs.symlink(src, dest, 'dir');
+                    this.addLog(id, `[MANAGER] Linked ${folder}\n`);
+                }
             }
         }
     } catch (e: any) {
-        this.addLog(id, `[MANAGER] Warning: Failed to link shared assets: ${e.message}\n`);
+        this.addLog(id, `[MANAGER] Warning: Asset linking: ${e.message}\n`);
     }
 
     inst.status = 'starting';
     inst.logs.push(`[MANAGER] Starting Hytale Server instance: ${id}...\n`);
 
     try {
-      // Phase 2: Process Control
-      if (process.env.MOCK_SERVER === 'true') {
-        // Simulated process for testing UI without real JARs
-        this.addLog(id, `[MOCK] Booting virtual Hytale engine...\n`);
-        this.addLog(id, `[MOCK] Loading world data...\n`);
-        
-        setTimeout(() => {
-          if (inst.status === 'starting') {
-            inst.status = 'online';
-            this.addLog(id, `[MOCK] Server started on port ${inst.port}!\n`);
-          }
-        }, 2000);
-        
-        return inst;
-      }
-
-      // Real Java process spawn
-      // Using -Xmx1G. In a real scenario, this would be configurable.
       const proc = spawn('java', ['-Xmx1024M', '-jar', doubleCheckJar], {
         cwd: instanceDir,
         stdio: ['pipe', 'pipe', 'pipe']
@@ -372,37 +356,32 @@ class ServerManager {
 
       inst.process = proc;
 
-      // Console Routing
       proc.stdout?.on('data', (data) => {
         const line = data.toString();
         this.addLog(id, line);
-        // Basic detection of "Started"
         if (line.toLowerCase().includes('started') || line.toLowerCase().includes('done')) {
           inst.status = 'online';
         }
       });
 
       proc.stderr?.on('data', (data) => {
-        const line = `[ERROR] ${data.toString()}`;
-        this.addLog(id, line);
+        this.addLog(id, `[ERROR] ${data.toString()}`);
       });
 
       proc.on('close', (code) => {
-        const line = `[MANAGER] Server stopped with code ${code}\n`;
-        this.addLog(id, line);
+        this.addLog(id, `[MANAGER] Server stopped with code ${code}\n`);
         inst.status = 'offline';
         inst.process = undefined;
       });
 
       proc.on('error', (err) => {
-        const line = `[CRITICAL] Process error: ${err.message}\n`;
-        this.addLog(id, line);
+        this.addLog(id, `[CRITICAL] Process error: ${err.message}\n`);
         inst.status = 'error';
         inst.process = undefined;
       });
 
     } catch (e: any) {
-      this.addLog(id, `[CRITICAL] Failed to spawn process: ${e.message}\n`);
+      this.addLog(id, `[CRITICAL] Failed to spawn: ${e.message}\n`);
       inst.status = 'error';
     }
 
@@ -419,7 +398,7 @@ class ServerManager {
   async deleteInstance(id: string) {
     const inst = this.instancesMap.get(id);
     if (!inst) throw new Error(`Instance ${id} not found`);
-    if (inst.status !== 'offline') throw new Error(`Cannot delete a running server. Stop it first.`);
+    if (inst.status !== 'offline') throw new Error(`Stop server first.`);
     
     const instanceDir = path.join(this.instancesDir, id);
     await fs.rm(instanceDir, { recursive: true, force: true });
@@ -431,7 +410,7 @@ class ServerManager {
     const inst = this.instancesMap.get(id);
     if (!inst) return;
     inst.logs.push(message);
-    if (inst.logs.length > 500) inst.logs.shift(); // Max 500 lines
+    if (inst.logs.length > 500) inst.logs.shift();
   }
 
   getInstances() {
@@ -453,7 +432,6 @@ class ServerManager {
   }
 }
 
-// Global singleton to handle HMR in Next.js
 const globalAny: any = global;
 export const serverManager: ServerManager = globalAny.serverManager || new ServerManager();
 if (process.env.NODE_ENV !== 'production') globalAny.serverManager = serverManager;
