@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
@@ -172,17 +172,21 @@ class ServerManager {
     if (currentJar && existsSync(assetsZip)) return;
 
     this.isDownloading = true;
-    this.addGlobalLog("[MANAGER] Core files or Assets.zip missing. Triggering integrity recovery...");
+    const downloadTarget = path.join(this.coreDir, 'hytaleserver.jar');
+    this.addGlobalLog(`[MANAGER] Launching: hytale-downloader -download-path ${downloadTarget}`);
     
     try {
-      const downloadTarget = path.join(this.coreDir, 'hytaleserver.jar');
       const downloader = spawn('hytale-downloader', ['-download-path', downloadTarget], {
         cwd: this.coreDir,
       });
 
       await new Promise<void>((resolve, reject) => {
+        downloader.stdout?.on('data', (d) => this.addGlobalLog(`[CLI] ${d.toString()}`));
+        downloader.stderr?.on('data', (d) => this.addGlobalLog(`[CLI-ERR] ${d.toString()}`));
+
         downloader.on('close', async (code) => {
           if (code === 0) {
+            this.addGlobalLog("[MANAGER] Download complete.");
             const zipPath = path.join(this.coreDir, 'hytaleserver.jar.zip');
             if (existsSync(zipPath)) {
                 this.addGlobalLog("[MANAGER] Extracting binaries...");
@@ -195,10 +199,17 @@ class ServerManager {
                 resolve();
             }
           } else {
+            // Log help on failure
+            this.addGlobalLog(`[MANAGER] Downloader failed (code ${code}). Pulling --help...`);
+            const help = spawnSync('hytale-downloader', ['--help']);
+            this.addGlobalLog(help.stdout.toString() + help.stderr.toString());
             reject(new Error(`Exit code ${code}`));
           }
         });
-        downloader.on('error', reject);
+        downloader.on('error', (err) => {
+            this.addGlobalLog(`[MANAGER] Spawn Error: ${err.message}`);
+            reject(err);
+        });
       });
     } catch (e: any) {
       this.addGlobalLog(`[ERROR] ${e.message}`);
