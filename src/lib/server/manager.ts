@@ -166,10 +166,13 @@ class ServerManager {
     if (this.isDownloading) return;
 
     const currentJar = await this.getJarPath();
-    if (currentJar) return;
+    const assetsZip = path.join(this.coreDir, 'Assets.zip');
+    
+    // Integrity check: Both JAR and Assets.zip must exist for Official Mode
+    if (currentJar && existsSync(assetsZip)) return;
 
     this.isDownloading = true;
-    this.addGlobalLog("[MANAGER] Core binaries missing. Triggering downloader...");
+    this.addGlobalLog("[MANAGER] Core files or Assets.zip missing. Triggering integrity recovery...");
     
     try {
       const downloadTarget = path.join(this.coreDir, 'hytaleserver.jar');
