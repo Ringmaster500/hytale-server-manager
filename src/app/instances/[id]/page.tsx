@@ -24,15 +24,17 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
   // Settings tab states
   const [editRam, setEditRam] = useState(2048);
   const [editPort, setEditPort] = useState(0);
+  const isLoadedRef = useRef(false);
 
   const fetchInstance = async () => {
     try {
       const res = await fetch(`/api/servers/${id}`);
       const data = await res.json();
       setInstance(data);
-      if (!instance) {
+      if (!isLoadedRef.current) {
           setEditRam(data.maxRam);
           setEditPort(data.port);
+          isLoadedRef.current = true;
       }
     } catch (e) {
       console.error('Failed to fetch instance', e);
