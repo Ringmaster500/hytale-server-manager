@@ -1,7 +1,7 @@
 FROM node:20-bookworm-slim
 
 # Force cache bust to bypass host-level corruption
-LABEL cache_bust="2026-04-06-001"
+LABEL cache_bust="2026-04-06-002"
 
 # Set memory limit for Node
 ENV NODE_OPTIONS="--max-old-space-size=2048"
@@ -21,13 +21,12 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Hytale Downloader CLI (Mirrors your 22:46 success)
+# Download and install Hytale Downloader CLI
 RUN wget -q https://downloader.hytale.com/hytale-downloader.zip -O /tmp/hytale-downloader.zip \
-    && unzip /tmp/hytale-downloader.zip -d /tmp/hytale-downloader \
-    && mv /tmp/hytale-downloader/hytale-downloader-* /usr/local/bin/hytale-downloader \
-    || echo "Warning: Hytale Downloader could not be downloaded automatically." \
-    && chmod +x /usr/local/bin/hytale-downloader || true \
-    && rm -rf /tmp/hytale-downloader*
+    && unzip /tmp/hytale-downloader.zip -d /tmp/hytale-downloader-tmp \
+    && mv /tmp/hytale-downloader-tmp/hytale-downloader-linux-amd64 /usr/local/bin/hytale-downloader \
+    && chmod +x /usr/local/bin/hytale-downloader \
+    && rm -rf /tmp/hytale-downloader-tmp /tmp/hytale-downloader.zip
 
 WORKDIR /app
 
