@@ -59,7 +59,8 @@ class ServerManager {
     await this.saveConfig();
   }
 
-  private async saveConfig() {
+  async saveConfig(config?: any) {
+    if (config) this.config = { ...this.config, ...config };
     await fs.writeFile(this.configFile, JSON.stringify(this.config, null, 2));
   }
 
