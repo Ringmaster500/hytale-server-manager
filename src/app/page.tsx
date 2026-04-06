@@ -45,7 +45,10 @@ export default function Home() {
   const createInstance = async () => {
     const name = prompt('Instance Name:');
     if (!name) return;
-    const port = parseInt(prompt('Port (default 4242):') || '4242');
+    
+    // We'll let the server decide the port by default
+    const portStr = prompt('Port (Leave blank for auto-assignment):');
+    const port = portStr ? parseInt(portStr) : undefined;
     
     setLoading(true);
     await fetch('/api/servers', {

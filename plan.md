@@ -24,8 +24,8 @@
 
 ## Phase 3: The API & Cloudflare Automation
 - [x] Create API routes for server lifecycle management (`/api/servers/*`).
-- [ ] **File Management API:** Create routes to read/write/delete files in `mods/` and `config/`.
-- [x] **Cloudflare Integration:** Basic API script for DNS and tunnel setup.
+- [x] **File Management API:** Create routes to read/write/delete files in `mods/` and `config/`.
+- [x] **Cloudflare Integration:** Automated DNS A-record management for UDP support.
 
 ## Phase 4: The Web Dashboard (Next.js UI)
 - [x] Build a sleek Homepage listing all created server instances with status polling.

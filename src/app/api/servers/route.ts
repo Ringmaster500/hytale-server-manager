@@ -13,8 +13,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const { name, port } = await req.json();
-    if (!name || !port) {
-      return NextResponse.json({ error: 'Name and port are required' }, { status: 400 });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
     const instance = await serverManager.createInstance(name, port);
     return NextResponse.json(instance);

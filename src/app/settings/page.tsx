@@ -10,7 +10,11 @@ export default function Settings() {
   const logsRef = useRef<HTMLDivElement>(null);
   
   const [cloudflareDomain, setCloudflareDomain] = useState('');
-  const [cloudflareConfigPath, setCloudflareConfigPath] = useState('/app/data/tunnel/config.yml');
+  const [cloudflareToken, setCloudflareToken] = useState('');
+  const [cloudflareZoneId, setCloudflareZoneId] = useState('');
+  const [publicIp, setPublicIp] = useState('');
+  const [portRangeStart, setPortRangeStart] = useState('5520');
+  const [portRangeEnd, setPortRangeEnd] = useState('5600');
 
   const fetchStatus = async () => {
     const res = await fetch('/api/system');
@@ -18,7 +22,11 @@ export default function Settings() {
     setStatus(data);
     if (data.config?.cloudflare) {
         setCloudflareDomain(data.config.cloudflare.domain || '');
-        setCloudflareConfigPath(data.config.cloudflare.configPath || '/app/data/tunnel/config.yml');
+        setCloudflareToken(data.config.cloudflare.apiToken || '');
+        setCloudflareZoneId(data.config.cloudflare.zoneId || '');
+        setPublicIp(data.config.cloudflare.publicIp || '');
+        setPortRangeStart(data.config.portRangeStart?.toString() || '5520');
+        setPortRangeEnd(data.config.portRangeEnd?.toString() || '5600');
     }
     
     // Fetch logs
@@ -48,7 +56,11 @@ export default function Settings() {
           body: JSON.stringify({ 
             action: 'save_cloudflare', 
             domain: cloudflareDomain,
-            configPath: cloudflareConfigPath
+            apiToken: cloudflareToken,
+            zoneId: cloudflareZoneId,
+            publicIp: publicIp,
+            portRangeStart: parseInt(portRangeStart),
+            portRangeEnd: parseInt(portRangeEnd)
           })
       });
       alert("Settings saved!");
@@ -57,6 +69,16 @@ export default function Settings() {
       alert("Failed to save.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const detectIp = async () => {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      setPublicIp(data.ip);
+    } catch (e) {
+      alert("Could not detect IP.");
     }
   };
 
@@ -75,9 +97,9 @@ export default function Settings() {
           {/* Cloudflare Section */}
           <section className="card glass">
             <div style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem' }}>Network</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem' }}>Cloudflare DNS</h2>
               <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
-                Local Tunnel Automation
+                Direct A-Record Management
               </p>
             </div>
 
@@ -88,17 +110,41 @@ export default function Settings() {
                   className="console-input" 
                   value={cloudflareDomain}
                   onChange={(e) => setCloudflareDomain(e.target.value)}
-                  placeholder="e.g. your-domain.com"
+                  placeholder="noxu-overseerr.org"
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Docker Config Path</label>
+                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>API Token</label>
                 <input 
                   className="console-input" 
-                  value={cloudflareConfigPath}
-                  onChange={(e) => setCloudflareConfigPath(e.target.value)}
+                  type="password"
+                  value={cloudflareToken}
+                  onChange={(e) => setCloudflareToken(e.target.value)}
+                  placeholder="cfut_..."
                 />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Zone ID</label>
+                <input 
+                  className="console-input" 
+                  value={cloudflareZoneId}
+                  onChange={(e) => setCloudflareZoneId(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Public Server IP</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input 
+                    className="console-input" 
+                    value={publicIp}
+                    onChange={(e) => setPublicIp(e.target.value)}
+                    placeholder="Auto-detected if blank"
+                    />
+                    <button className="btn btn-secondary" style={{ padding: '0 0.5rem', fontSize: '0.7rem' }} onClick={detectIp}>Detect</button>
+                </div>
               </div>
 
               <button 
@@ -108,6 +154,36 @@ export default function Settings() {
               >
                 {loading ? 'Saving...' : 'Update Settings'}
               </button>
+            </div>
+          </section>
+
+          {/* Instance Default Port Section */}
+          <section className="card glass">
+             <div style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem' }}>Instance Networking</h2>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
+                UDP Port Range for Hytale servers.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+               <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Min Port</label>
+                <input 
+                  className="console-input" 
+                  value={portRangeStart}
+                  onChange={(e) => setPortRangeStart(e.target.value)}
+                  type="number"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Max Port</label>
+                <input 
+                  className="console-input" 
+                  value={portRangeEnd}
+                  onChange={(e) => setPortRangeEnd(e.target.value)}
+                  type="number"
+                />
+              </div>
             </div>
           </section>
 

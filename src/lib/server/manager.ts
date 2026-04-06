@@ -2,7 +2,7 @@ import { spawn, ChildProcess, spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 import { existsSync, mkdirSync, readFileSync } from 'fs';
-import { tunnelManager } from './tunnel';
+import { addDnsRecord, removeDnsRecord, getPublicIp } from './cloudflare';
 
 export interface ServerInstance {
   id: string;
@@ -43,7 +43,7 @@ class ServerManager {
         const data = readFileSync(this.configFile, 'utf-8');
         this.config = JSON.parse(data);
         if (this.config.cloudflare) {
-          tunnelManager.setConfig(this.config.cloudflare);
+          // No longer using tunnelManager here
         }
       } catch (e) {
         this.config = {};
@@ -57,7 +57,6 @@ class ServerManager {
 
   async saveCloudflareConfig(config: any) {
     this.config.cloudflare = config;
-    await tunnelManager.setConfig(config);
     await this.saveConfig();
   }
 
@@ -245,7 +244,19 @@ class ServerManager {
     }
   }
 
-  async createInstance(name: string, port: number) {
+  getNextPort() {
+    const start = this.config.portRangeStart || 5520;
+    const end = this.config.portRangeEnd || 5600;
+    const activePorts = Array.from(this.instancesMap.values()).map(i => i.port);
+    
+    for (let p = start; p <= end; p++) {
+      if (!activePorts.includes(p)) return p;
+    }
+    return start; // Fallback
+  }
+
+  async createInstance(name: string, port?: number) {
+    const finalPort = port || this.getNextPort();
     const id = name.toLowerCase().replace(/\s+/g, '-');
     const instanceDir = path.join(this.instancesDir, id);
     if (existsSync(instanceDir)) throw new Error(`Instance ${id} exists`);
@@ -253,10 +264,10 @@ class ServerManager {
     await fs.mkdir(instanceDir, { recursive: true });
     await fs.mkdir(path.join(instanceDir, 'mods'), { recursive: true });
 
-    const props = `server.port=${port}\nserver.name=${name}\nmax-players=20\n`;
+    const props = `server.port=${finalPort}\nserver.name=${name}\nmax-players=20\n`;
     await fs.writeFile(path.join(instanceDir, 'server.properties'), props);
 
-    const instance: ServerInstance = { id, name, port, status: 'offline', logs: [] };
+    const instance: ServerInstance = { id, name, port: finalPort, status: 'offline', logs: [] };
     this.instancesMap.set(id, instance);
     return instance;
   }
@@ -304,15 +315,34 @@ class ServerManager {
     inst.status = 'starting';
     inst.logs.push(`[MANAGER] Launching Hytale Instance (Official Assets Mode)...\n`);
 
-    // Cloudflare Subdomain Provisioning
-    if (this.config.cloudflare) {
+    // Cloudflare DNS Record Provisioning
+    if (this.config.cloudflare?.apiToken && this.config.cloudflare?.zoneId) {
         try {
-            this.addLog(id, `[TUNNEL] Provisioning subdomain: ${id}.${this.config.cloudflare.domain}...\n`);
-            const url = await tunnelManager.createSubdomain(id, inst.port);
+            const subdomain = id;
+            const fullDomain = `${subdomain}.${this.config.cloudflare.domain}`;
+            this.addLog(id, `[CF-DNS] Provisioning DNS: ${fullDomain} -> ${this.config.cloudflare.publicIp}...\n`);
+            
+            // Auto-detect IP if none provided
+            if (!this.config.cloudflare.publicIp) {
+                try {
+                  this.config.cloudflare.publicIp = await getPublicIp();
+                  this.addGlobalLog(`[MANAGER] Auto-detected public IP: ${this.config.cloudflare.publicIp}`);
+                } catch (e) {
+                  this.addLog(id, `[CF-DNS] Warning: Failed to auto-detect IP, using Tailscale if fallback available\n`);
+                }
+            }
+
+            const url = await addDnsRecord({
+              apiToken: this.config.cloudflare.apiToken,
+              zoneId: this.config.cloudflare.zoneId,
+              publicIp: this.config.cloudflare.publicIp,
+              domain: this.config.cloudflare.domain
+            }, subdomain);
+            
             inst.subdomain = url;
-            this.addLog(id, `[TUNNEL] Successfully mapped ${url} to port ${inst.port}\n`);
+            this.addLog(id, `[CF-DNS] Success: Registered ${url}\n`);
         } catch (e: any) {
-            this.addLog(id, `[TUNNEL] Error: Failed to provision subdomain: ${e.message}\n`);
+            this.addLog(id, `[CF-DNS] Error: Failed to update DNS: ${e.message}\n`);
         }
     }
 
@@ -357,12 +387,17 @@ class ServerManager {
       await this.stopServer(id);
     }
 
-    // Network Cleanup
-    if (this.config.cloudflare) {
+    // DNS Cleanup
+    if (this.config.cloudflare?.apiToken && this.config.cloudflare?.zoneId) {
         try {
-            await tunnelManager.removeSubdomain(id);
+            await removeDnsRecord({
+              apiToken: this.config.cloudflare.apiToken,
+              zoneId: this.config.cloudflare.zoneId,
+              publicIp: this.config.cloudflare.publicIp,
+              domain: this.config.cloudflare.domain
+            }, id);
         } catch (e) {
-            this.addGlobalLog("[MANAGER] Cloudflare cleanup failed (ignoring)");
+            this.addGlobalLog("[MANAGER] Cloudflare DNS cleanup failed (ignoring)");
         }
     }
 
