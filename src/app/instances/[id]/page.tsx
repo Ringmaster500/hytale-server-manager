@@ -9,6 +9,7 @@ interface ServerInstance {
   port: number;
   status: 'online' | 'offline' | 'starting' | 'error';
   logs: string[];
+  subdomain?: string;
 }
 
 export default function InstanceDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -145,6 +146,12 @@ export default function InstanceDetail({ params }: { params: Promise<{ id: strin
                 <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>PORT</p>
                 <p style={{ fontWeight: '600' }}>{instance.port}</p>
               </div>
+              {instance.subdomain && (
+                <div style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <p style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Cloudflare Tunnel</p>
+                  <p style={{ fontWeight: '600', color: 'var(--accent)', fontSize: '0.85rem', wordBreak: 'break-all' }}>{instance.subdomain}</p>
+                </div>
+              )}
             </div>
           </div>
         </aside>
