@@ -391,8 +391,7 @@ class ServerManager {
     const proc = spawn('java', [
         `-Xmx${inst.maxRam}M`, 
         '-XX:+UseZGC',
-        '-XX:+ZGenerational',
-        '-XX:MaxDirectMemorySize=1G',
+        '-XX:MaxDirectMemorySize=2G',
         '-XX:-UseCompressedOops',
         '-Dsentry.enabled=false',
         '-Dio.netty.allocator.type=unpooled',
